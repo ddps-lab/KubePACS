@@ -8,11 +8,7 @@ from dotenv import load_dotenv
 # .env 파일에서 환경 변수 로드
 load_dotenv()
 
-<<<<<<< HEAD
 sys.path.append('~/Desktop/KubeCaps/multi_nodepool')
-=======
-sys.path.append('/Users/taeyoon/Desktop/KubeCaps/multi_nodepool')
->>>>>>> 05e8e39052def73c978b197282c1ebee8cb43e0e
 from multi_nodepool.kubecaps_creator import create_eks_nodes, TARGET_REGION
 from multi_nodepool.kubecaps_scaler import delete_spot_instance_for_eks, get_instance_id_from_spot_request, wait_for_instance_running
 
