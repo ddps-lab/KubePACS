@@ -13,6 +13,6 @@ variable "vpc_cidr" {
 
 variable "prefix" {
   type    = string
-  default = "kubecaps-test"
+  default = "kubecaps-dev"
 }
 

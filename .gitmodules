@@ -1,0 +1,3 @@
+[submodule "lithops"]
+	path = lithops
+	url = https://github.com/lithops-cloud/lithops
