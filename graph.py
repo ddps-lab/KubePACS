@@ -3,8 +3,11 @@ import lithops
 import time
 import sys
 import os
+import lithops
+import networkx as nx
+import pickle
+import community.community_louvain as community_louvain
 from dotenv import load_dotenv
-
 
 load_dotenv()
 
@@ -20,23 +23,18 @@ INSTANCE_POLL_INTERVAL = 15 # 인스턴스 상태 확인 간격 (초)
 
 # 생성 POD 사양 정의
 FILE_PATH = get_aws_spot_prices(target_region='us-east-1', allow_arm=False)
-RUNTIME_CPU = 1
-RUNTIME_MEMORY = 0.5
-MAX_WORKERS = 4
+RUNTIME_CPU = 4
+RUNTIME_MEMORY = 8
+MAX_WORKERS = 40
 
 # 생성할 노드 정의
 target_instances = getGoldenNodepool(FILE_PATH, MAX_WORKERS, RUNTIME_CPU, RUNTIME_MEMORY, verbose=False)["nodepool_config"]
 print(target_instances)
 target_instances = [
     {
-            "instance_type": "t2.medium",
-            "availability_zone": "us-east-1a",
-            "num_instances": 1
-    },
-    {
-        "instance_type": "t2.medium",
-        "availability_zone": "us-east-1b",
-        "num_instances": 1
+        "instance_type": "c3.2xlarge",
+        "availability_zone": "us-east-1a",
+        "num_instances": 20
     }
 ]
 
@@ -46,6 +44,7 @@ AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_REGION")
 KUBECFG_PATH = os.getenv("KUBECFG_PATH")
+
 #lithops 설정
 lithops_config = {
     "lithops": {
@@ -58,7 +57,9 @@ lithops_config = {
         "docker_password": DOCKER_PASSWORD,
         "runtime_cpu": RUNTIME_CPU,
         "runtime_memory": RUNTIME_MEMORY * 1024,
-        "max_workers": MAX_WORKERS
+        "max_workers": MAX_WORKERS,
+        "runtime_timeout": 3600,
+        "master_timeout": 3600
     },
     "aws": {
         "access_key_id": AWS_ACCESS_KEY_ID,
@@ -93,16 +94,65 @@ print(f"Successfully started instances: {running_instance_ids}")
 
 print("\nStarting Lithops job...")
 try:
+    BUCKET = "kubecaps-dev-lithops-bucket"
+    NUM_FUNCTIONS = 4
+    NODES = 1000 #5000
+    EDGE_PROB = 0.05 # 0.5
+    N_DIJKSTRA = 20 #150
+
     lithops_config["k8s"]["job_name"] = RANDOM_JOB_NAME
     fexec = lithops.ServerlessExecutor(config=lithops_config, log_level='DEBUG')
+    storage = lithops.Storage(config=lithops_config)
 
-    fut = fexec.call_async(hello, 'World')
-    result = fut.result()
-    print(result)
+    get_graph_name = lambda x: x.key.split("/")[-1]
+
+    def gen_graphs(n):
+        storage.create_bucket(BUCKET)
+        try:
+            last_index = int(storage.list_objects(BUCKET, "graphs/")[-1]["Key"][-1]) + 1
+        except (IndexError, KeyError):
+            last_index = 0
+        graphs = []
+        for i in range(last_index, n):
+            G = nx.erdos_renyi_graph(NODES, EDGE_PROB)
+            graphs.append(G)
+        for i, graph in enumerate(graphs):
+            storage.put_object(BUCKET, "graphs/graph{}".format(i), pickle.dumps(graph))
+
+
+    def compute_pagerank(obj):
+        storage = lithops.Storage()
+        graph = pickle.loads(obj.data_stream.read())
+        paqerank = nx.pagerank(graph, alpha=0.99)
+        storage.put_object(BUCKET, "pagerank/" + get_graph_name(obj), pickle.dumps(paqerank))
+
+
+    def community_detection(obj):
+        storage = lithops.Storage()
+        graph = pickle.loads(obj.data_stream.read())
+        communities = community_louvain.best_partition(graph)
+        storage.put_object(BUCKET, "communities/" + get_graph_name(obj), pickle.dumps(communities))
+
+
+    def first_n_dijkstra(obj):
+        storage = lithops.Storage()
+        graph = pickle.loads(obj.data_stream.read())
+        pagerank = pickle.loads(storage.get_object(BUCKET, "pagerank/" + get_graph_name(obj)))
+        important_nodes = sorted(pagerank, key=pagerank.get, reverse=True)[:N_DIJKSTRA]
+        shortest_paths = {}
+        for i in important_nodes:
+            shortest_paths[i] = nx.single_source_dijkstra_path(graph, i)
+        storage.put_object(BUCKET, "dijkstra/" + get_graph_name(obj), pickle.dumps(shortest_paths))
+
+    gen_graphs(NUM_FUNCTIONS)
+
+    fexec.map(community_detection, BUCKET + "/graphs/")
+    fexec.map(compute_pagerank, BUCKET + "/graphs/").get_result()
+    fexec.map(first_n_dijkstra, BUCKET + "/graphs/")
+    fexec.wait()
+    fexec.dump_stats_to_csv(f"{RANDOM_JOB_NAME}.csv")
 
     print("\nLithops job finished.")
-    
-
 finally:
     # 4. 생성된 인스턴스 종료 (try...finally 블록으로 이동하여 오류 발생 시에도 실행되도록 함)
     if running_instance_ids:
