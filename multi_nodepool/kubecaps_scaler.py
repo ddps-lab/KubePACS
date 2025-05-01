@@ -3,22 +3,18 @@ import base64
 import json
 from botocore.exceptions import ClientError
 import time
+import os
+import dotenv
 
-session = boto3.Session(profile_name="ddpslab")
+dotenv.load_dotenv()
+
+session = boto3.Session(profile_name=os.getenv("AWS_PROFILE"))
 ec2 = session.resource('ec2')
-<<<<<<< HEAD
-=======
-# ec2 = boto3.resource('ec2')
->>>>>>> 05e8e39052def73c978b197282c1ebee8cb43e0e
 
 def create_node_role(
     region: str,
     cluster_name: str,
 ):
-<<<<<<< HEAD
-=======
-    # eks_client = boto3.client('eks', region_name=region)
->>>>>>> 05e8e39052def73c978b197282c1ebee8cb43e0e
     eks_client = session.client('eks', region_name=region)
     iam_client = session.client('iam')
     role_name = f"eks-{cluster_name}-node-role"
@@ -172,13 +168,197 @@ def delete_spot_request_for_eks(
     ec2_client.cancel_spot_instance_requests(SpotInstanceRequestIds=[spot_request_id])  
     print(f"Spot Request {spot_request_id} cancelled.")
 
-def delete_spot_instance_for_eks(
+def delete_ec2_instance_for_eks(
     instance_id: str,
     region: str,
 ):
     ec2_client = session.client('ec2', region_name=region)
     ec2_client.terminate_instances(InstanceIds=[instance_id])  
     print(f"Instance {instance_id} terminated.")
+
+def create_ondemand_instance_for_eks(
+    instance_type: str,
+    region: str,
+    availability_zone: str,
+    num_instances: int,
+    cluster_name: str,
+    cluster_dns_ip: str,
+    ami_id: str,
+    subnet_id: str,
+    security_group_ids: list[str],
+    iam_instance_profile_arn: str,
+    custom_node_labels: dict[str, str] | None = None,
+    tags: dict[str, str] | None = None
+):
+    """
+    Creates an on-demand EC2 instance for an EKS cluster.
+
+    Args:
+        instance_type: The type of instance to create.  
+        region: The AWS region to create the instance in.
+        availability_zone: The availability zone to create the instance in.
+        num_instances: The number of instances to create.
+        cluster_name: The name of the EKS cluster.
+        cluster_dns_ip: The IP address of the EKS cluster's API server. 
+        ami_id: The AMI ID to use for the instance.
+        subnet_id: The subnet ID to use for the instance.
+        security_group_ids: The security group IDs to use for the instance.
+        iam_instance_profile_arn: The IAM instance profile ARN to use for the instance.
+        custom_node_labels: The custom node labels to use for the instance.
+        tags: The tags to use for the instance. 
+
+    Returns:
+        The EC2 instance ID if successful, otherwise None.
+    """
+    print(f"Requesting on-demand EC2 instance type {instance_type} in {availability_zone} ({region}) for EKS cluster {cluster_name}")
+    ec2_client = session.client('ec2', region_name=region)  
+    eks_client = session.client('eks', region_name=region)
+
+    # --- Get EKS Cluster Details ---
+    try:
+        print(f"Fetching details for EKS cluster: {cluster_name} in region {region}...")
+        cluster_info = eks_client.describe_cluster(name=cluster_name)
+        cluster_data = cluster_info['cluster']
+        api_server_endpoint = cluster_data['endpoint']
+        cluster_ca_base64 = cluster_data['certificateAuthority']['data']
+        print(f"Successfully fetched EKS cluster details.")
+    except Exception as e:
+        print(f"ERROR: Failed to fetch details for EKS cluster '{cluster_name}' in region '{region}'.") 
+        print(f" Error details: {e}")
+        print(" Please ensure the cluster name and region are correct and you have permissions.")
+        return None
+
+    # --- Bottlerocket TOML User Data ---
+    settings = {
+        "settings": {
+            "kubernetes": {
+                "api-server": api_server_endpoint,
+                "cluster-certificate": cluster_ca_base64,
+                "cluster-name": cluster_name,
+                "cluster-dns-ip": cluster_dns_ip,
+            },
+        }
+    }
+    node_labels = {}
+    if custom_node_labels:
+        node_labels.update(custom_node_labels)
+    settings["settings"]["kubernetes"]["node-labels"] = node_labels
+    user_data_lines = ["[settings]", "[settings.kubernetes]"]
+    for key, value in settings["settings"]["kubernetes"].items():
+        if key == "node-labels":
+            user_data_lines.append("\n[settings.kubernetes.node-labels]")
+            for lk, lv in value.items():
+                escaped_lk = lk.replace('"', '\\"')
+                escaped_lv = lv.replace('"', '\\"')
+                user_data_lines.append(f'"{escaped_lk}" = "{escaped_lv}"')
+        elif isinstance(value, str):
+             escaped_value = value.replace('"', '\\"')
+             user_data_lines.append(f'{key} = "{escaped_value}"')
+        elif isinstance(value, int):
+             user_data_lines.append(f"{key} = {value}")
+
+    user_data_toml = "\n".join(user_data_lines)
+    print("\n--- Generated UserData (TOML): ---")       
+    print(user_data_toml)
+    print("------------------------------------\n")
+    
+    # --- Launch Specification ---
+    launch_specification = {    
+        'ImageId': ami_id,
+        'InstanceType': instance_type,
+        'SecurityGroupIds': security_group_ids,
+        'IamInstanceProfile': {
+            'Arn': iam_instance_profile_arn
+        },  
+        'UserData': user_data_toml,
+        'Placement': {
+            'AvailabilityZone': availability_zone,
+        },
+        'SubnetId': subnet_id,
+        'BlockDeviceMappings': [
+            {
+                'DeviceName': '/dev/xvda',
+                'Ebs': {
+                    'VolumeSize': 32,
+                    
+                }
+            }           
+        ],
+    }   
+
+    # --- Step 1: Request On-Demand Instances ---
+    try:
+        request_args = {
+            'MinCount': num_instances,
+            'MaxCount': num_instances,
+            **launch_specification,
+            'TagSpecifications': [
+                {
+                    'ResourceType': 'instance',
+                    'Tags': [{'Key': k, 'Value': v} for k, v in tags.items()] if tags else []
+                }
+            ]
+        }
+        response = ec2_client.run_instances(**request_args)
+        instance_ids = [i['InstanceId'] for i in response['Instances']]
+        print(f"Successfully requested {num_instances} on-demand instances: {instance_ids}")
+        return instance_ids
+    except Exception as e:
+        print(f"ERROR: Failed to request on-demand instances: {e}")
+        return None
+
+def get_instance_id_from_on_demand_request(
+    instance_ids: list[str],
+    region: str,
+    retry_interval_seconds: int = 1,
+    timeout_seconds: int = 300
+) -> list[str] | None:
+    """
+    Retrieves the EC2 instance IDs associated with a given on-demand request,
+    polling until all instances are running or reaches a timeout.
+
+    Args:
+        instance_ids: The list of instance IDs to monitor.
+        region: The AWS region where the instances are located.
+        retry_interval_seconds: The number of seconds to wait between checks.
+        timeout_seconds: The maximum number of seconds to wait for all instances to be running.     
+    Returns:
+        The list of instance IDs if all instances are running within the timeout, otherwise None.
+    """
+    ec2_client = session.client('ec2', region_name=region)
+    start_time = time.time()
+
+    while True: 
+        elapsed_time = time.time() - start_time
+        if elapsed_time > timeout_seconds:
+            print(f"ERROR: Timeout ({timeout_seconds}s) waiting for on-demand instances to be running.")
+            return None
+
+        try:        
+            response = ec2_client.describe_instances(InstanceIds=instance_ids)
+            instances = response['Reservations'][0]['Instances']
+
+            running_instances = [i['InstanceId'] for i in instances if i['State']['Name'] == 'running']
+            pending_instances = [i['InstanceId'] for i in instances if i['State']['Name'] == 'pending'] 
+            failed_instances = [i['InstanceId'] for i in instances if i['State']['Name'] == 'failed']           
+
+            if running_instances:
+                print(f"Successfully started {len(running_instances)} instances: {running_instances}")
+                return running_instances
+            elif pending_instances: 
+                print(f"Waiting for {len(pending_instances)} pending instances to start...")
+            elif failed_instances:
+                print(f"ERROR: Failed to start {len(failed_instances)} instances: {failed_instances}")
+                return None
+
+        except ClientError as e:            
+            print(f"Error describing instances: {e}")
+            return None
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return None
+        
+        time.sleep(retry_interval_seconds)
 
 def create_spot_instance_for_eks(
     instance_type: str,
@@ -328,7 +508,7 @@ def create_spot_instance_for_eks(
         print(f"ERROR: Instance {instance_id} did not reach 'running' state. Manual cleanup might be required.")
         # Depending on requirements, you might want to terminate the instance here
         # try:
-        #     delete_spot_instance_for_eks(instance_id, region)
+        #     delete_ec2_instance_for_eks(instance_id, region)
         # except Exception as term_e:
         #     print(f"Warning: Failed to terminate instance {instance_id} after run timeout: {term_e}")
         return None

@@ -1,8 +1,13 @@
+import pickle
 import boto3
 from botocore.exceptions import ClientError
 from kubernetes import client, config
+import os
+import dotenv
 
-session = boto3.Session(profile_name="ddpslab")
+dotenv.load_dotenv()
+
+session = boto3.Session(profile_name=os.getenv("AWS_PROFILE"))
 
 def get_eks_vpc_id(cluster_name: str, region: str) -> str | None:
     """
@@ -236,4 +241,3 @@ if __name__ == "__main__":
         print(f"성공적으로 kube-dns 서비스 IP를 조회했습니다: {retrieved_kube_dns_ip}")
     else:
         print("\nVPC ID 조회에 실패했습니다.")
-

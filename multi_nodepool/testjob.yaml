@@ -17,6 +17,10 @@ spec:
                     operator: In
                     values:
                       - job1
+                  - key: lithops/jobtype
+                    operator: In
+                    values:
+                      - master
       containers:
         - name: pi
           image: perl
