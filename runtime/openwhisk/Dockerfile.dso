@@ -1,0 +1,5 @@
+FROM openjdk:slim
+COPY --from=lithopscloud/ibmcf-python-v36 / /
+
+RUN pip install --upgrade pip setuptools six \
+    && pip install --no-cache-dir dso==0.0.4

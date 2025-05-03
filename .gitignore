@@ -1,0 +1,40 @@
+# Byte-compiled / optimized / DLL files
+*.pyc
+__pycache__/
+build/
+dist/
+plots/
+*.egg-info
+lithops_*.zip
+*.log
+*.txt
+*.csv
+*.coverage*
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+
+# Linux
+*~
+
+# Mac
+.DS_Store
+
+# IDE - Eclipse PyDev
+.project
+.pydevproject
+
+# IDE - PyCharm
+.idea/
+
+# IDE - VSCode
+.vscode/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Doc built HTML files
+docs/_build
