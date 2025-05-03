@@ -29,7 +29,7 @@ target_instances = getGoldenNodepool(FILE_PATH, MAX_WORKERS, RUNTIME_CPU, RUNTIM
 print(target_instances)
 target_instances = [
     {
-            "instance_type": "t2.medium",
+            "instance_type": "t4g.medium",
             "availability_zone": "us-east-1a",
             "num_instances": 1
     },

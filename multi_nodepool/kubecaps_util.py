@@ -181,10 +181,26 @@ def get_security_groups_for_vpc(vpc_id: str, region: str) -> list[str] | None:
         print(f"보안 그룹 조회 중 예상치 못한 오류 발생: {e}")
         return None
 
-def get_bottlerocket_ami_id(region: str) -> str | None:
+def get_bottlerocket_ami_id(region: str, instance_type: str) -> str | None:
+    instance_type = instance_type.lower()
+    arm_prefixes = ('a1.', 't4g.', 'm6g.', 'c6g.', 'c6gn', 'r6g.', 'x2gd.', 'im4g.', 'is4g.', 'g5g.', 'hpc7g.', 'm7g.', 'c7g.', 'r7g.', "m8g.", "c8g.", "r8g.", "x8g.", "i8g")
+
+    is_arm64 = False
+    for prefix in arm_prefixes:
+        if instance_type.startswith(prefix):
+            is_arm64 = True
+            break
+
+    if is_arm64:
+        print(f"인스턴스 유형 '{instance_type}'은(는) ARM64 아키텍처로 확인되었습니다.")
+    else:
+        print(f"인스턴스 유형 '{instance_type}'은(는) x86_64 아키텍처로 확인되었습니다.")
     try:
         ssm_client = session.client('ssm', region_name=region) # 기본 자격 증명 사용
-        parameter_name = "/aws/service/bottlerocket/aws-k8s-1.32/x86_64/latest/image_id"
+        if is_arm64:
+            parameter_name = "/aws/service/bottlerocket/aws-k8s-1.32/arm64/latest/image_id"
+        else:
+            parameter_name = "/aws/service/bottlerocket/aws-k8s-1.32/x86_64/latest/image_id"
         print(f"리전 '{region}'에서 SSM 파라미터 '{parameter_name}'의 값을 조회합니다...")
 
         # SSM 파라미터 값 가져오기 요청

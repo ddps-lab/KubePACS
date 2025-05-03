@@ -11,7 +11,7 @@ TARGET_REGION = os.getenv("TARGET_REGION")
 TARGET_CLUSTER_DNS = get_kube_dns_ip("~/.kube/config")
 
 # --- Instance Configuration ---
-TARGET_AMI_ID = get_bottlerocket_ami_id(TARGET_REGION) # bottlerocket ami(us-east-1)
+TARGET_AMI_ID = get_bottlerocket_ami_id(TARGET_REGION, "t3.medium") # bottlerocket ami(us-east-1)
 TARGET_VPC_ID = get_eks_vpc_id(TARGET_CLUSTER, TARGET_REGION)
 TARGET_SUBNET_IDS = get_subnets_by_az_for_vpc(TARGET_VPC_ID, TARGET_REGION)
 TARGET_SG_IDS = get_security_groups_for_vpc(TARGET_VPC_ID, TARGET_REGION)
@@ -67,7 +67,7 @@ def create_eks_nodes(target_instances: list[dict], job_name: str):
                             num_instances=instance["num_instances"],
                             cluster_name=TARGET_CLUSTER,
                             cluster_dns_ip=TARGET_CLUSTER_DNS,
-                            ami_id=TARGET_AMI_ID,
+                            ami_id=get_bottlerocket_ami_id(instance["availability_zone"][:-1], instance["instance_type"]),
                             subnet_id=subnet_id,
                             security_group_ids=TARGET_SG_IDS,
                             iam_instance_profile_arn=TARGET_IAM_PROFILE_ARN,
