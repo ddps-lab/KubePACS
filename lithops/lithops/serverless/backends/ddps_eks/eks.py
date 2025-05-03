@@ -133,20 +133,6 @@ class KubernetesBackend:
 
         docker_path = utils.get_docker_path()
 
-        if dockerfile:
-            assert os.path.isfile(dockerfile), f'Cannot locate "{dockerfile}"'
-            cmd = f'{docker_path} buildx build --platform linux/amd64,linux/arm64 -t {docker_image_name} -f {dockerfile} . --push'
-        else:
-            cmd = f'{docker_path} buildx build --platform linux/amd64,linux/arm64 -t {docker_image_name} . --push'
-        cmd = cmd + ' '.join(extra_args)
-
-        try:
-            entry_point = os.path.join(os.path.dirname(__file__), 'entry_point.py')
-            utils.create_handler_zip(config.FH_ZIP_LOCATION, entry_point, 'lithopsentry.py')
-            utils.run_command(cmd)
-        finally:
-            os.remove(config.FH_ZIP_LOCATION)
-
         docker_user = self.k8s_config.get("docker_user")
         docker_password = self.k8s_config.get("docker_password")
         docker_server = self.k8s_config.get("docker_server")
@@ -156,12 +142,28 @@ class KubernetesBackend:
             cmd = f'{docker_path} login -u {docker_user} --password-stdin {docker_server}'
             utils.run_command(cmd, input=docker_password)
 
-        logger.debug(f'Pushing runtime {docker_image_name} to container registry')
-        if utils.is_podman(docker_path):
-            cmd = f'{docker_path} push {docker_image_name} --format docker --remove-signatures'
+        if dockerfile:
+            assert os.path.isfile(dockerfile), f'Cannot locate "{dockerfile}"'
+            cmd = f'{docker_path} buildx build --platform=linux/amd64,linux/arm64 -t {docker_image_name} -f {dockerfile} --push . '
         else:
-            cmd = f'{docker_path} push {docker_image_name}'
-        utils.run_command(cmd)
+            cmd = f'{docker_path} buildx build --platform=linux/amd64,linux/arm64 -t {docker_image_name} --push . '
+        cmd = cmd + ' '.join(extra_args)
+
+        print(cmd)
+
+        try:
+            entry_point = os.path.join(os.path.dirname(__file__), 'entry_point.py')
+            utils.create_handler_zip(config.FH_ZIP_LOCATION, entry_point, 'lithopsentry.py')
+            utils.run_command(cmd)
+        finally:
+            os.remove(config.FH_ZIP_LOCATION)
+
+        # logger.debug(f'Pushing runtime {docker_image_name} to container registry')
+        # if utils.is_podman(docker_path):
+        #     cmd = f'{docker_path} push {docker_image_name} --format docker --remove-signatures'
+        # else:
+        #     cmd = f'{docker_path} push {docker_image_name}'
+        # utils.run_command(cmd)
 
         logger.debug('Building done!')
 
@@ -172,12 +174,13 @@ class KubernetesBackend:
         # Build default runtime using local dokcer
         dockerfile = "Dockefile.default-k8s-runtime"
         with open(dockerfile, 'w') as f:
-            f.write(f"FROM python:{utils.CURRENT_PY_VERSION}-slim\n")
+            f.write(f"FROM python:{utils.CURRENT_PY_VERSION}-slim-buster\n")
             f.write(config.DOCKERFILE_DEFAULT)
         try:
             self.build_runtime(docker_image_name, dockerfile)
         finally:
             os.remove(dockerfile)
+
 
     def _create_container_registry_secret(self):
         """

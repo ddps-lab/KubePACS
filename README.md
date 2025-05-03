@@ -9,3 +9,10 @@
     terraform init
     terraform apply --auto-approve
     ```
+
+## Git subtree
+
+```bash
+git fetch lithops-upstream
+git subtree pull --prefix=lithops lithops-upstream/master --squash -m "Update lithops"
+```

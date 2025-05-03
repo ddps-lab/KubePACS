@@ -42,6 +42,7 @@ target_instances = [
 
 DOCKER_USER = os.getenv("DOCKER_USER")
 DOCKER_PASSWORD = os.getenv("DOCKER_PASSWORD")
+DOCKER_IMAGE = os.getenv("DOCKER_IMAGE")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_REGION")
@@ -49,13 +50,14 @@ KUBECFG_PATH = os.getenv("KUBECFG_PATH")
 #lithops 설정
 lithops_config = {
     "lithops": {
-        "backend": "k8s",
+        "backend": "ddps_eks",
         "storage": "aws_s3"
     },
-    "k8s": {
+    "ddps_eks": {
         "kubecfg_path": KUBECFG_PATH,
         "docker_user": DOCKER_USER,
         "docker_password": DOCKER_PASSWORD,
+        "runtime": DOCKER_IMAGE,
         "runtime_cpu": RUNTIME_CPU,
         "runtime_memory": RUNTIME_MEMORY * 1024,
         "max_workers": MAX_WORKERS
@@ -93,7 +95,7 @@ print(f"Successfully started instances: {running_instance_ids}")
 
 print("\nStarting Lithops job...")
 try:
-    lithops_config["k8s"]["job_name"] = RANDOM_JOB_NAME
+    lithops_config["ddps_eks"]["job_name"] = RANDOM_JOB_NAME
     fexec = lithops.ServerlessExecutor(config=lithops_config, log_level='DEBUG')
 
     fut = fexec.call_async(hello, 'World')

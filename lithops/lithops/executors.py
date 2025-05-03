@@ -1,3 +1,4 @@
+# https://github.com/kikemolina3/lithops/blob/cpubound-pipelines/lithops/executors.py
 #
 # (C) Copyright IBM Corp. 2020
 # (C) Copyright Cloudlab URV 2020
@@ -108,7 +109,8 @@ class FunctionExecutor:
 
         self.data_cleaner = self.config['lithops'].get('data_cleaner', True)
         if self.data_cleaner and not self.is_lithops_worker:
-            atexit.register(self.clean, clean_cloudobjects=False, clean_fn=True, on_exit=True)
+            # atexit.register(self.clean, clean_cloudobjects=False, clean_fn=True, on_exit=True)
+            atexit.register(os.system, 'lithops clean')
 
         storage_config = extract_storage_config(self.config)
         self.internal_storage = InternalStorage(storage_config)
@@ -558,6 +560,34 @@ class FunctionExecutor:
 
         create_timeline(ftrs_to_plot, dst, figsize)
         create_histogram(ftrs_to_plot, dst, figsize)
+
+    def dump_stats_to_csv(self, folder="lithops_stats"):
+        """
+        Dumps the stats of all the futures to a csv file
+        """
+        import pandas as pd
+
+        if self.backend == "aws_ec2":
+            vms_data = self.compute_handler.backend.get_workers_history()
+        elif self.backend in ["k8s", "localhost", "ddps_eks"]:
+            vms_data = []
+        else:
+            raise NotImplementedError(
+                f"Stats dump not implemented for {self.backend} backend. "
+            )
+
+        stats = []
+        for f in self.futures:
+            stats.append(f.stats)
+
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
+        df = pd.DataFrame(stats)
+        df.to_csv(f'{folder}/stats.csv', index=False)
+
+        df = pd.DataFrame(vms_data)
+        df.to_csv(f'{folder}/vms.csv', index=False)
 
     def clean(
         self,
