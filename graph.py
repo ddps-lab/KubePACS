@@ -1,6 +1,6 @@
 import uuid
 import lithops
-import time
+import json
 import sys
 import os
 import lithops
@@ -25,21 +25,26 @@ INSTANCE_POLL_INTERVAL = 15 # 인스턴스 상태 확인 간격 (초)
 FILE_PATH = get_aws_spot_prices(target_region='us-east-1', allow_arm=False)
 RUNTIME_CPU = 4
 RUNTIME_MEMORY = 8
-MAX_WORKERS = 40
+MAX_WORKERS = 50
 
 # 생성할 노드 정의
-target_instances = getGoldenNodepool(FILE_PATH, MAX_WORKERS, RUNTIME_CPU, RUNTIME_MEMORY, verbose=False)["nodepool_config"]
+golden_nodepool = getGoldenNodepool(FILE_PATH, MAX_WORKERS, RUNTIME_CPU, RUNTIME_MEMORY, verbose=False)
+target_instances = golden_nodepool["nodepool_config"]
+
 print(target_instances)
-target_instances = [
-    {
-        "instance_type": "c3.2xlarge",
-        "availability_zone": "us-east-1a",
-        "num_instances": 20
-    }
-]
+
+# target_instances = [
+#     {
+#         "instance_type": "c3.2xlarge",
+#         "availability_zone": "us-east-1a",
+#         "num_instances": 20
+#     }
+# ]
 
 DOCKER_USER = os.getenv("DOCKER_USER")
 DOCKER_PASSWORD = os.getenv("DOCKER_PASSWORD")
+DOCKER_IMAGE = os.getenv("DOCKER_IMAGE")
+
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_REGION")
@@ -48,18 +53,21 @@ KUBECFG_PATH = os.getenv("KUBECFG_PATH")
 #lithops 설정
 lithops_config = {
     "lithops": {
-        "backend": "k8s",
-        "storage": "aws_s3"
+        "backend": "ddps_eks",
+        "storage": "aws_s3",
+        "execution_timeout": 3600
     },
-    "k8s": {
+    "ddps_eks": {
         "kubecfg_path": KUBECFG_PATH,
         "docker_user": DOCKER_USER,
         "docker_password": DOCKER_PASSWORD,
+        "runtime": DOCKER_IMAGE,
         "runtime_cpu": RUNTIME_CPU,
         "runtime_memory": RUNTIME_MEMORY * 1024,
         "max_workers": MAX_WORKERS,
         "runtime_timeout": 3600,
-        "master_timeout": 3600
+        "master_timeout": 3600,
+        "execution_timeout": 3600
     },
     "aws": {
         "access_key_id": AWS_ACCESS_KEY_ID,
@@ -68,13 +76,18 @@ lithops_config = {
     }
 }
 
-print(lithops_config)
-
-def hello(name):
-    return 'Hello {}!'.format(name)
-
-
+# 랜덤 작업 이름 생성   
 RANDOM_JOB_NAME = str(uuid.uuid4())
+
+# 랜덤 작업 이름 폴더 생성
+os.makedirs(f"{RANDOM_JOB_NAME}")
+
+# 랜덤 작업 이름 폴더 내 golden_nodepool.json 파일 생성
+golden_nodepool_filename = f"{RANDOM_JOB_NAME}/golden_nodepool.json"
+with open(golden_nodepool_filename, 'w', encoding='utf-8') as f:
+    json.dump(golden_nodepool, f, ensure_ascii=False, indent=4)
+print(f"성공적으로 '{golden_nodepool_filename}' 파일에 golden_nodepool 데이터를 저장했습니다.")
+
 
 # 1. EKS 노드 생성 요청 및 실행 대기
 print("Requesting EKS nodes and waiting for them to be ready...")
@@ -100,13 +113,13 @@ try:
     EDGE_PROB = 0.05 # 0.5
     N_DIJKSTRA = 20 #150
 
-    lithops_config["k8s"]["job_name"] = RANDOM_JOB_NAME
+    lithops_config["ddps_eks"]["job_name"] = RANDOM_JOB_NAME
     fexec = lithops.ServerlessExecutor(config=lithops_config, log_level='DEBUG')
-    storage = lithops.Storage(config=lithops_config)
-
+    
     get_graph_name = lambda x: x.key.split("/")[-1]
 
     def gen_graphs(n):
+        storage = lithops.Storage(config=lithops_config)
         storage.create_bucket(BUCKET)
         try:
             last_index = int(storage.list_objects(BUCKET, "graphs/")[-1]["Key"][-1]) + 1
@@ -121,21 +134,21 @@ try:
 
 
     def compute_pagerank(obj):
-        storage = lithops.Storage()
+        storage = lithops.Storage(config=lithops_config)
         graph = pickle.loads(obj.data_stream.read())
         paqerank = nx.pagerank(graph, alpha=0.99)
         storage.put_object(BUCKET, "pagerank/" + get_graph_name(obj), pickle.dumps(paqerank))
 
 
     def community_detection(obj):
-        storage = lithops.Storage()
+        storage = lithops.Storage(config=lithops_config)
         graph = pickle.loads(obj.data_stream.read())
         communities = community_louvain.best_partition(graph)
         storage.put_object(BUCKET, "communities/" + get_graph_name(obj), pickle.dumps(communities))
 
 
     def first_n_dijkstra(obj):
-        storage = lithops.Storage()
+        storage = lithops.Storage(config=lithops_config)
         graph = pickle.loads(obj.data_stream.read())
         pagerank = pickle.loads(storage.get_object(BUCKET, "pagerank/" + get_graph_name(obj)))
         important_nodes = sorted(pagerank, key=pagerank.get, reverse=True)[:N_DIJKSTRA]
@@ -146,11 +159,11 @@ try:
 
     gen_graphs(NUM_FUNCTIONS)
 
-    fexec.map(community_detection, BUCKET + "/graphs/")
-    fexec.map(compute_pagerank, BUCKET + "/graphs/").get_result()
-    fexec.map(first_n_dijkstra, BUCKET + "/graphs/")
-    fexec.wait()
-    fexec.dump_stats_to_csv(f"{RANDOM_JOB_NAME}.csv")
+    fexec.map(community_detection, BUCKET + "/graphs/", timeout=3600)
+    fexec.map(compute_pagerank, BUCKET + "/graphs/", timeout=3600)
+    fexec.map(first_n_dijkstra, BUCKET + "/graphs/", timeout=3600)
+    fexec.wait(timeout=3600)
+    fexec.dump_stats_to_csv(RANDOM_JOB_NAME)
 
     print("\nLithops job finished.")
 finally:
