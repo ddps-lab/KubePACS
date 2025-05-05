@@ -12,20 +12,20 @@ spec:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: lithops/jobname
-                operator: In
-                values:
-                - job1
+              - matchExpressions:
+                  - key: lithops/nodetype
+                    operator: In
+                    values:
+                      - spot
       containers:
-      - name: pi
-        image: perl
-        command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
-        resources:
-          requests:
-            memory: "1500Mi"
-            cpu: "900m"
-          limits:
-            memory: "1500Mi"
-            cpu: "900m"
+        - name: pi
+          image: perl
+          command: ["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+          resources:
+            requests:
+              memory: "8000Mi"
+              cpu: "900m"
+            limits:
+              memory: "8000Mi"
+              cpu: "900m"
       restartPolicy: Never
