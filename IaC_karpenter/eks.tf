@@ -22,7 +22,7 @@ module "eks" {
   }
 
   eks_managed_node_groups = {
-    kubecaps_addon_nodes = {
+    kubecaps_addon_nodes_2 = {
       vpc_security_group_ids = [module.eks.node_security_group_id, aws_security_group.worker_node_sg.id]
       ami_type               = "BOTTLEROCKET_x86_64"
       desired_size           = 1

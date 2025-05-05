@@ -26,7 +26,22 @@ resource "helm_release" "karpenter" {
   repository_username = data.aws_ecrpublic_authorization_token.token.user_name
   repository_password = data.aws_ecrpublic_authorization_token.token.password
   wait                = true
-  version             = "1.0.8"
+  version             = "1.4.0"
+
+  values = [
+    <<-EOT
+    settings:
+      clusterName: ${var.cluster_name}
+      clusterEndpoint: ${var.cluster_endpoint}
+      interruptionQueue: ${module.karpenter.queue_name}
+    serviceAccount:
+      annotations:
+        eks.amazonaws.com/role-arn: ${module.karpenter.iam_role_arn}
+    nodeSelector:
+      eks.amazonaws.com/nodegroup: ${var.node_group_id}
+    replicas: 1
+    EOT
+  ]
 
   depends_on = [module.karpenter]
 }
