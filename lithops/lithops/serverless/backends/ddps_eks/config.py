@@ -129,6 +129,64 @@ spec:
         - name: lithops-regcred
 """
 
+JOB_KARPENTER = """
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: lithops-worker-name
+  namespace: default
+  labels:
+    type: lithops-worker
+    version: lithops_vX.X.X
+    user: lithops-user
+spec:
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 60
+  parallelism: 1
+  backoffLimit: 0
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: lithops/nodetype
+                    operator: In
+                    values:
+                      - ondemand
+      restartPolicy: Never
+      containers:
+        - name: "lithops"
+          image: "<INPUT>"
+          # imagePullPolicy: IfNotPresent
+          command: ["python3"]
+          args:
+            - "/lithops/lithopsentry.py"
+            - "$(ACTION)"
+            - "$(DATA)"
+          env:
+            - name: ACTION
+              value: ''
+            - name: DATA
+              value: ''
+            - name: MASTER_POD_IP
+              value: ''
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          resources:
+            requests:
+              cpu: '0.2'
+              memory: 128Mi
+            limits:
+              cpu: '0.2'
+              memory: 128Mi
+      imagePullSecrets:
+        - name: lithops-regcred
+"""
+
 POD = """
 apiVersion: v1
 kind: Pod

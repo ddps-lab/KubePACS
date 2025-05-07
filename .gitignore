@@ -247,3 +247,4 @@ terraform.rc
 
 merged_coremark_spotdata_*.csv
 results/*
+az_mapping.json

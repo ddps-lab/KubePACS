@@ -32,18 +32,11 @@ RUNTIME_MEMORY = 8
 TOTAL_WORKERS = 30
 
 # 생성할 노드 정의
-golden_nodepool = getGoldenNodepool(FILE_PATH, TOTAL_WORKERS, RUNTIME_CPU, RUNTIME_MEMORY, verbose=False)
-target_instances = golden_nodepool["nodepool_config"]
+golden_nodepool = []
+# target_instances = golden_nodepool["nodepool_config"]
 
-print(target_instances)
+# print(target_instances)
 
-# target_instances = [
-#     {
-#         "instance_type": "c3.2xlarge",
-#         "availability_zone": "us-east-1a",
-#         "num_instances": 20
-#     }
-# ]
 
 DOCKER_USER = os.getenv("DOCKER_USER")
 DOCKER_PASSWORD = os.getenv("DOCKER_PASSWORD")
@@ -52,7 +45,7 @@ DOCKER_IMAGE = os.getenv("DOCKER_IMAGE")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_REGION")
-KUBECFG_PATH = os.getenv("KUBECFG_PATH2")
+KUBECFG_PATH = os.getenv("KUBECFG_PATH")
 
 #lithops 설정
 lithops_config = {
@@ -72,7 +65,7 @@ lithops_config = {
         "runtime_timeout": 3600,
         "master_timeout": 3600,
         "execution_timeout": 3600,
-        "is_karpenter": False,
+        "is_karpenter": True,
         "worker_processes": 1
     },
     "aws": {
@@ -182,7 +175,7 @@ finally:
     # 4. 생성된 인스턴스 종료
     instance_ids_filename = f"results/{RANDOM_JOB_NAME}/instance_ids.json"
     instance_ids = []
-
+    
     if 'END_TIME' not in locals() and 'END_TIME' not in globals():
         print("\nLithops job did not finish successfully, END_TIME is not set.")
         END_TIME =  datetime.now(timezone.utc)

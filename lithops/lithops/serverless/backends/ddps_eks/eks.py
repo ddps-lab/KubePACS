@@ -454,15 +454,24 @@ class KubernetesBackend:
             time.sleep(2)
         except ApiException:
             pass
+        is_karpenter = self.k8s_config['is_karpenter'] if 'is_karpenter' in self.k8s_config else False
 
-        master_res = yaml.safe_load(config.JOB_DEFAULT)
+        if is_karpenter:
+            master_res = yaml.safe_load(config.JOB_KARPENTER)
+        else:
+            master_res = yaml.safe_load(config.JOB_DEFAULT)
+
         master_res['metadata']['name'] = self.master_name
         master_res['metadata']['namespace'] = self.namespace
         master_res['metadata']['labels']['version'] = 'lithops_v' + __version__
         master_res['metadata']['labels']['user'] = self.user
         master_res['spec']['activeDeadlineSeconds'] = self.k8s_config['master_timeout']
-        master_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][0]['values'] = [self.k8s_config['job_name']]
-        master_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][1]['values'] = ["ondemand"]
+
+        if is_karpenter:
+            master_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][0]['values'] = ["ondemand"]
+        else:
+            master_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][0]['values'] = [self.k8s_config['job_name']]
+            master_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][1]['values'] = ["ondemand"]
         
         container = master_res['spec']['template']['spec']['containers'][0]
         container['image'] = docker_image_name
@@ -637,7 +646,7 @@ class KubernetesBackend:
 
             total_calls = job_payload['total_calls']
             chunksize = job_payload['chunksize']
-            total_workers = max_workers
+            total_workers  = min(max_workers, total_calls // chunksize + (total_calls % chunksize > 0))
 
             logger.debug(f'total_workers: {total_workers}')
             logger.debug(f'total_calls: {total_calls}')
@@ -648,7 +657,13 @@ class KubernetesBackend:
 
             activation_id = f'lithops-{job_key.lower()}'
 
-            job_res = yaml.safe_load(config.JOB_DEFAULT)
+            is_karpenter = self.k8s_config['is_karpenter'] if 'is_karpenter' in self.k8s_config else False
+
+            if is_karpenter:
+                job_res = yaml.safe_load(config.JOB_KARPENTER)
+            else:
+                job_res = yaml.safe_load(config.JOB_DEFAULT)
+
             job_res['metadata']['name'] = activation_id
             job_res['metadata']['namespace'] = self.namespace
             job_res['metadata']['labels']['version'] = 'lithops_v' + __version__
@@ -656,8 +671,12 @@ class KubernetesBackend:
 
             job_res['spec']['activeDeadlineSeconds'] = self.k8s_config['runtime_timeout']
             job_res['spec']['parallelism'] = total_workers
-            job_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][0]['values'] = [self.k8s_config['job_name']]
-            job_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][1]['values'] = ["spot"]
+
+            if is_karpenter:
+                job_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][0]['values'] = ["spot"]
+            else:
+                job_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][0]['values'] = [self.k8s_config['job_name']]
+                job_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][1]['values'] = ["spot"]
 
             container = job_res['spec']['template']['spec']['containers'][0]
             container['image'] = docker_image_name
@@ -699,13 +718,22 @@ class KubernetesBackend:
         payload['runtime_name'] = runtime_name
         payload['log_level'] = logger.getEffectiveLevel()
 
-        job_res = yaml.safe_load(config.JOB_DEFAULT)
+        is_karpenter = self.k8s_config['is_karpenter'] if 'is_karpenter' in self.k8s_config else False
+
+        if is_karpenter:
+            job_res = yaml.safe_load(config.JOB_KARPENTER)
+        else:
+            job_res = yaml.safe_load(config.JOB_DEFAULT)
         job_res['metadata']['name'] = meta_job_name
         job_res['metadata']['namespace'] = self.namespace
         job_res['metadata']['labels']['version'] = 'lithops_v' + __version__
         job_res['metadata']['labels']['user'] = self.user
-        job_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][0]['values'] = [self.k8s_config['job_name']]
-        job_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][1]['values'] = ["spot"]
+
+        if is_karpenter:
+            job_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][0]['values'] = ["spot"]
+        else:
+            job_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][0]['values'] = [self.k8s_config['job_name']]
+            job_res['spec']['template']['spec']['affinity']['nodeAffinity']['requiredDuringSchedulingIgnoredDuringExecution']['nodeSelectorTerms'][0]['matchExpressions'][1]['values'] = ["spot"]
 
         container = job_res['spec']['template']['spec']['containers'][0]
         container['image'] = docker_image_name

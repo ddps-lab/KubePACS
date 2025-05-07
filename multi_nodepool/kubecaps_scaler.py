@@ -375,22 +375,25 @@ def create_spot_instance_for_eks(
     tags: dict[str, str] | None = None
 ):
     """
-    Requests a Bottlerocket Spot Instance, waits for it to run, tags it (if specified),
-    and returns the instance ID.
+    Requests Bottlerocket Spot Instances individually using a loop, waits for each to run,
+    tags them (if specified), and returns a list of instance IDs.
 
-    1. Requests a Spot Instance configured to join an EKS cluster.
+    For each instance requested (up to num_instances):
+    1. Requests a single Spot Instance configured to join an EKS cluster.
     2. Polls AWS until the Spot request is fulfilled and an instance ID is available.
     3. Waits for the EC2 instance to reach the 'running' state.
     4. Applies specified EC2 tags to the running instance.
 
     Returns:
-        The EC2 instance ID if successful, otherwise None.
+        A list containing the EC2 instance ID for each successful request,
+        and None for each failed request. The list length will match num_instances.
     """
-    print(f"Requesting Bottlerocket Spot instance type {instance_type} in {availability_zone} ({region}) for EKS cluster {cluster_name}")
+    print(f"Attempting to create {num_instances} Bottlerocket Spot instance(s) of type {instance_type} in {availability_zone} ({region}) for EKS cluster {cluster_name}")
     ec2_client = session.client('ec2', region_name=region)
     eks_client = session.client('eks', region_name=region)
+    instance_ids = [] # List to store instance IDs
 
-    # --- Get EKS Cluster Details ---
+    # --- Get EKS Cluster Details (once) ---
     try:
         print(f"Fetching details for EKS cluster: {cluster_name} in region {region}...")
         cluster_info = eks_client.describe_cluster(name=cluster_name)
@@ -404,7 +407,7 @@ def create_spot_instance_for_eks(
         print(" Please ensure the cluster name and region are correct and you have permissions.")
         return None
 
-    # --- Bottlerocket TOML User Data ---
+    # --- Bottlerocket TOML User Data (once) ---
     settings = {
         "settings": {
             "kubernetes": {
@@ -439,7 +442,7 @@ def create_spot_instance_for_eks(
     print("------------------------------------\n")
     encoded_user_data = base64.b64encode(user_data_toml.encode('utf-8')).decode('utf-8')
 
-    # --- Launch Specification ---
+    # --- Launch Specification (base) ---
     launch_specification = {
         'ImageId': ami_id,
         'InstanceType': instance_type,
@@ -464,58 +467,78 @@ def create_spot_instance_for_eks(
         ],
     }
 
-    # --- Step 1: Spot Instance Request (No Tags) ---
-    spot_request_id = None
-    try:
-        request_args = {
-            'InstanceCount': num_instances,
-            'LaunchSpecification': launch_specification,
-            'Type': 'one-time',
-            'TagSpecifications': [
-                {
-                    'ResourceType': 'spot-instances-request',
-                    'Tags': [{'Key': k, 'Value': v} for k, v in tags.items()] if tags else []
-                }
-            ]
-        }
-        response = ec2_client.request_spot_instances(**request_args)
-        spot_request_id = response['SpotInstanceRequests'][0]['SpotInstanceRequestId']
-        print(f"Successfully submitted Spot Instance request: {spot_request_id}")
+    # --- Loop to create instances one by one ---
+    for i in range(num_instances):
+        print(f"\n--- Requesting Instance {i + 1} of {num_instances} ---")
+        instance_id = None # Reset instance_id for this iteration
+        spot_request_id = None # Reset spot_request_id for this iteration
 
-    except Exception as e:
-        print(f"ERROR: Failed requesting Spot Instance in {availability_zone}: {e}")
-        return None
-
-    # --- Step 2: Get Instance ID from Spot Request ---
-    instance_id = get_instance_id_from_spot_request(
-        spot_request_id=spot_request_id,
-        region=region
-        # Consider making timeouts configurable if needed
-    )
-
-    if not instance_id:
-        print(f"ERROR: Failed to get Instance ID for Spot Request {spot_request_id}. Cleaning up Spot Request.")
         try:
-            delete_spot_request_for_eks(spot_request_id, region)
-        except Exception as cleanup_e:
-            print(f"Warning: Failed to clean up spot request {spot_request_id}: {cleanup_e}")
-        return None
+            # --- Step 1: Spot Instance Request (for one instance) ---
+            request_args = {
+                'InstanceCount': 1, # Request only one instance per iteration
+                'LaunchSpecification': launch_specification,
+                'Type': 'one-time',
+                'TagSpecifications': [
+                    {
+                        'ResourceType': 'spot-instances-request',
+                        'Tags': [{'Key': k, 'Value': v} for k, v in tags.items()] if tags else []
+                    }
+                ]
+            }
+            response = ec2_client.request_spot_instances(**request_args)
+            spot_request_id = response['SpotInstanceRequests'][0]['SpotInstanceRequestId']
+            print(f"Successfully submitted Spot Instance request: {spot_request_id}")
 
-    print(f"Obtained Instance ID: {instance_id} for Spot Request {spot_request_id}")
+            # --- Step 2: Get Instance ID from Spot Request ---
+            instance_id = get_instance_id_from_spot_request(
+                spot_request_id=spot_request_id,
+                region=region
+            )
 
-    # --- Step 3: Wait for Instance to be Running ---
-    if not wait_for_instance_running(instance_id=instance_id, region=region):
-        print(f"ERROR: Instance {instance_id} did not reach 'running' state. Manual cleanup might be required.")
-        # Depending on requirements, you might want to terminate the instance here
-        # try:
-        #     delete_ec2_instance_for_eks(instance_id, region)
-        # except Exception as term_e:
-        #     print(f"Warning: Failed to terminate instance {instance_id} after run timeout: {term_e}")
-        return None
+            if not instance_id:
+                print(f"ERROR: Failed to get Instance ID for Spot Request {spot_request_id}. Cleaning up Spot Request.")
+                try:
+                    delete_spot_request_for_eks(spot_request_id, region)
+                except Exception as cleanup_e:
+                    print(f"Warning: Failed to clean up spot request {spot_request_id}: {cleanup_e}")
+                # Append None for failure and continue to next iteration
+                instance_ids.append(None)
+                continue # Move to the next instance request
 
-    # --- Return Instance ID ---
-    print(f"Instance {instance_id} is running.")
-    return instance_id
+            print(f"Obtained Instance ID: {instance_id} for Spot Request {spot_request_id}")
+
+            # --- Step 3: Wait for Instance to be Running ---
+            if not wait_for_instance_running(instance_id=instance_id, region=region):
+                print(f"ERROR: Instance {instance_id} did not reach 'running' state. Manual cleanup might be required.")
+                # Append None for failure and continue to next iteration
+                instance_ids.append(None)
+                continue # Move to the next instance request
+
+            # --- Instance Running ---
+            print(f"Instance {instance_id} is running.")
+            instance_ids.append(instance_id) # Add successful instance ID to the list
+
+        except Exception as e:
+            print(f"ERROR: Failed during Spot Instance creation process for instance {i + 1}: {e}")
+            if spot_request_id and not instance_id: # If request was made but instance ID not obtained
+                print(f"Attempting to clean up spot request {spot_request_id} due to error.")
+                try:
+                    delete_spot_request_for_eks(spot_request_id, region)
+                except Exception as cleanup_e:
+                    print(f"Warning: Failed to clean up spot request {spot_request_id}: {cleanup_e}")
+            instance_ids.append(None) # Append None for this failed attempt
+            continue # Move to the next instance request
+
+    print(f"\n--- Summary ---")
+    print(f"Requested: {num_instances} instances")
+    successful_creates = sum(1 for id in instance_ids if id is not None)
+    print(f"Successfully created: {successful_creates} instances")
+    print(f"Returned Instance IDs: {instance_ids}")
+    print("---------------")
+
+    # --- Return list of Instance IDs (or Nones) ---
+    return instance_ids
 
 def get_instance_id_from_spot_request(
     spot_request_id: str,

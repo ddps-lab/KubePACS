@@ -50,7 +50,7 @@ def create_eks_nodes(target_instances: list[dict], job_name: str):
         tags={"lithops/jobname": job_name, "lithops/nodetype": "ondemand", "Name": f"{TARGET_CLUSTER}-master-{job_name}"}
     )
     
-    instance_ids = ondemand_instance_id
+    instance_ids.extend(ondemand_instance_id)
 
     for instance in target_instances:
         try:
@@ -77,10 +77,7 @@ def create_eks_nodes(target_instances: list[dict], job_name: str):
 
             if spot_instance_id:
                 print(f"Spot request {spot_instance_id} created for {instance['instance_type']} in {instance['availability_zone']}.")
-                instance_ids.append(spot_instance_id)
-                # Optional: Add instance ID fetching logic here if needed immediately
-                # instance_id = get_instance_id_from_spot_request(spot_req_id, instance["availability_zone"][:-1])
-                # print(f"Instance ID: {instance_id}")
+                instance_ids.extend(spot_instance_id)
             else:
                 print(f"Failed to create Spot request for {instance['instance_type']} in {instance['availability_zone']}.")
         except Exception as e:

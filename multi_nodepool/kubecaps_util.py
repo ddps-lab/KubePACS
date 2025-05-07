@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 import pickle
 import boto3
 from botocore.exceptions import ClientError
@@ -237,23 +238,177 @@ def get_kube_dns_ip(kubeconfig_path):
     svc = v1.read_namespaced_service(name="kube-dns", namespace="kube-system")
     return svc.spec.cluster_ip
 
+def get_karpenter_instance_ids(kubeconfig_path, start_time, end_time):
+    import subprocess
+    import re
+    from datetime import datetime, timezone, timedelta
+    import os # os.path.expanduser 사용
+
+    # Helper 함수: datetime 객체가 timezone 정보를 가지도록 보장 (UTC 기준)
+    def ensure_timezone_aware(dt):
+        """datetime 객체가 timezone 정보를 가지도록 보장 (UTC 기준)."""
+        if not isinstance(dt, datetime):
+            raise TypeError("start_time 및 end_time은 datetime 객체여야 합니다.")
+        if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+            # timezone 정보가 없는 경우 UTC로 간주
+            return dt.replace(tzinfo=timezone.utc)
+        # timezone 정보가 있는 경우 UTC로 변환
+        return dt.astimezone(timezone.utc)
+
+    # kubeconfig 경로 처리 (예: ~ 확장)
+    kubeconfig_path_expanded = os.path.expanduser(kubeconfig_path)
+    if not os.path.exists(kubeconfig_path_expanded):
+        print(f"오류: Kubeconfig 파일을 찾을 수 없습니다: {kubeconfig_path_expanded}")
+        return []
+
+    # start_time과 end_time을 timezone-aware UTC로 변환
+    try:
+        start_time_utc = ensure_timezone_aware(start_time)
+        end_time_utc = ensure_timezone_aware(end_time)
+    except TypeError as e:
+        print(f"오류: {e}")
+        return []
+
+    # kubectl 명령어 구성
+    # --since-time 플래그는 로그 시작 시간을 지정하여 가져오는 로그 양을 줄일 수 있음
+    # Karpenter 로그는 자체적으로 타임스탬프를 포함하므로 --timestamps=false 사용
+    # 약간의 버퍼를 위해 start_time보다 조금 더 이전부터 로그를 가져올 수 있음 (선택 사항)
+    # buffer_time = start_time_utc - timedelta(minutes=1)
+    cmd = [
+        "kubectl",
+        "--kubeconfig", kubeconfig_path_expanded,
+        "logs",
+        "deployment/karpenter", # 'deploy/' 대신 'deployment/' 사용이 더 일반적
+        "--namespace", "karpenter",
+        # "--since-time", buffer_time.isoformat(timespec='seconds') + 'Z', # 버퍼 사용 시
+        "--since=0s", # 가능한 모든 로그를 가져오도록 설정 (시간 필터링은 파이썬에서 수행)
+        "--timestamps=false"
+    ]
+
+    print(f"Karpenter 로그 조회 명령어 실행: {' '.join(cmd)}")
+
+    instance_ids_found = set()
+
+    try:
+        # kubectl 명령어 실행
+        # check=False로 설정하여 오류 발생 시 예외 대신 returncode 확인
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False, encoding='utf-8')
+        print(result)
+        # 명령어 실행 결과 확인
+        if result.returncode != 0:
+            print(f"오류: kubectl 명령어 실행 실패 (종료 코드: {result.returncode})")
+            stderr_output = result.stderr.strip()
+            print(f"stderr:\n{stderr_output}")
+            if "NotFound" in stderr_output or "not found" in stderr_output:
+                print("진단: 'deployment/karpenter'를 'karpenter' 네임스페이스에서 찾을 수 없습니다. Karpenter 설치 및 네임스페이스를 확인하세요.")
+            elif "error: You must be logged in to the server" in stderr_output:
+                 print("진단: Kubernetes 클러스터 인증에 실패했습니다. kubeconfig 파일 또는 인증 상태를 확인하세요.")
+            elif "connect: connection refused" in stderr_output:
+                 print("진단: Kubernetes API 서버에 연결할 수 없습니다. 클러스터 상태 및 네트워크 연결을 확인하세요.")
+            return [] # 오류 발생 시 빈 리스트 반환
+
+        logs = result.stdout
+        if not logs:
+            print("정보: Karpenter 로그가 비어 있습니다.")
+            return []
+
+        # 로그 라인 파싱을 위한 정규 표현식
+        # 타임스탬프: ISO 8601 형식 (YYYY-MM-DDTHH:MM:SS.ffffffZ)
+        # 인스턴스 ID: i-xxxxxxxxxxxxxxxxx 또는 i-xxxxxxxx (8자리 또는 17자리 hex)
+        timestamp_pattern = re.compile(r'"time":"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)"')
+        instance_id_pattern = re.compile(r"(i-[0-9a-f]{17})")
+
+        print(f"로그 파싱 시작: 시간 범위 [{start_time_utc.isoformat()}, {end_time_utc.isoformat()}]")
+        lines_processed = 0
+        ids_in_range = 0
+
+        for line in logs.splitlines():
+            lines_processed += 1
+            print(f"\\nDEBUG: Processing line {lines_processed}: {line[:300]}...") # Log more characters
+            # Use re.search() instead of re.match() to find the pattern anywhere in the line
+            timestamp_match = timestamp_pattern.search(line)
+            if timestamp_match:
+                timestamp_str = timestamp_match.group(1)
+                print(f"DEBUG: Matched timestamp_str: {timestamp_str}")
+                try:
+                    # 타임스탬프 문자열 파싱 (밀리초 유무 처리)
+                    if '.' in timestamp_str:
+                        # Ensure parsing matches the exact format, including 'Z'
+                        if 'Z' in timestamp_str and timestamp_str.endswith('Z'):
+                            log_time = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+                        else: # If Z is not at the end or missing, this might be an issue or a different format
+                            print(f"DEBUG: Timestamp '{timestamp_str}' has '.' but 'Z' is not at the end or is missing. Attempting without 'Z'.")
+                            log_time = datetime.strptime(timestamp_str.rstrip('Z'), "%Y-%m-%dT%H:%M:%S.%f").replace(tzinfo=timezone.utc)
+
+                    else:
+                        # Ensure parsing matches the exact format, including 'Z'
+                        if 'Z' in timestamp_str and timestamp_str.endswith('Z'):
+                            log_time = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+                        else: # If Z is not at the end or missing
+                            print(f"DEBUG: Timestamp '{timestamp_str}' does not have '.' and 'Z' is not at the end or is missing. Attempting without 'Z'.")
+                            log_time = datetime.strptime(timestamp_str.rstrip('Z'), "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+
+                    print(f"DEBUG: Parsed log_time: {log_time.isoformat()}, Start: {start_time_utc.isoformat()}, End: {end_time_utc.isoformat()}")
+
+                    # 로그 시간이 지정된 범위 내에 있는지 확인
+                    if start_time_utc <= log_time <= end_time_utc:
+                        print(f"DEBUG: Timestamp IS IN RANGE.")
+                        # 해당 라인에서 인스턴스 ID 검색
+                        found_ids = instance_id_pattern.findall(line)
+                        print(f"DEBUG: Found instance IDs in line: {found_ids}")
+                        if found_ids:
+                            for inst_id in found_ids:
+                                if inst_id not in instance_ids_found:
+                                    print(f"DEBUG: Adding new instance ID: {inst_id} (from line with time {log_time.isoformat()})")
+                                    instance_ids_found.add(inst_id)
+                                    ids_in_range += 1
+                    else:
+                        # 더 자세한 비교를 위해 각 값 출력
+                        print(f"DEBUG: Timestamp IS OUT OF RANGE. " +
+                              f"start_time_utc ({start_time_utc.isoformat()}) <= log_time ({log_time.isoformat()}) is {start_time_utc <= log_time}. " +
+                              f"log_time ({log_time.isoformat()}) <= end_time_utc ({end_time_utc.isoformat()}) is {log_time <= end_time_utc}.")
+
+                except ValueError as e_parse:
+                    print(f"DEBUG: Timestamp parsing FAILED for '{timestamp_str}': {e_parse}")
+                    continue
+            else:
+                print(f"DEBUG: Timestamp pattern did NOT match for line beginning with: {line[:50]}") # Print start of line
+                # Consider if the log format might change or if some lines don't have timestamps
+
+        print(f"로그 파싱 완료: {lines_processed} 라인 처리, {ids_in_range} 개의 유니크한 인스턴스 ID를 시간 범위 내에서 찾음.")
+
+    except FileNotFoundError:
+        print(f"오류: 'kubectl' 명령어를 찾을 수 없습니다. 시스템 PATH 환경 변수를 확인하거나 kubectl을 설치하세요.")
+        return []
+    except Exception as e:
+        print(f"Karpenter 로그 처리 중 예상치 못한 오류 발생: {e}")
+        import traceback
+        traceback.print_exc() # 예상치 못한 오류 디버깅을 위한 스택 트레이스 출력
+        return []
+
+    # 찾은 인스턴스 ID 목록을 정렬하여 반환
+    final_instance_list = sorted(list(instance_ids_found))
+
+    return final_instance_list
+
 # # 함수 사용 예시 (필요한 경우 주석 해제하여 테스트)
 if __name__ == "__main__":
+    get_karpenter_instance_ids("~/.kube/config", datetime.now(timezone.utc) - timedelta(hours=1), datetime.now(timezone.utc))
     # 실제 클러스터 이름과 리전으로 변경하세요
-    my_cluster_name = "callisto-k8s-cluster-prod-mq2"
-    my_region = "ap-northeast-2"
+    # my_cluster_name = "callisto-k8s-cluster-prod-mq2"
+    # my_region = "ap-northeast-2"
 
-    retrieved_vpc_id = get_eks_vpc_id(my_cluster_name, my_region)
-    retrieved_subnets = get_subnets_by_az_for_vpc(retrieved_vpc_id, my_region)
-    retrieved_security_groups = get_security_groups_for_vpc(retrieved_vpc_id, my_region)
-    retrieved_bottlerocket_ami_id = get_bottlerocket_ami_id("us-east-1")
-    retrieved_kube_dns_ip = get_kube_dns_ip("~/.kube/config")
+    # retrieved_vpc_id = get_eks_vpc_id(my_cluster_name, my_region)
+    # retrieved_subnets = get_subnets_by_az_for_vpc(retrieved_vpc_id, my_region)
+    # retrieved_security_groups = get_security_groups_for_vpc(retrieved_vpc_id, my_region)
+    # retrieved_bottlerocket_ami_id = get_bottlerocket_ami_id("us-east-1")
+    # retrieved_kube_dns_ip = get_kube_dns_ip("~/.kube/config")
 
-    if retrieved_vpc_id:
-        print(f"\n성공적으로 VPC ID를 조회했습니다: {retrieved_vpc_id}")
-        print(f"성공적으로 서브넷 정보를 조회했습니다: {retrieved_subnets}")
-        print(f"성공적으로 보안 그룹 정보를 조회했습니다: {retrieved_security_groups}")
-        print(f"성공적으로 Bottlerocket AMI ID를 조회했습니다: {retrieved_bottlerocket_ami_id}")
-        print(f"성공적으로 kube-dns 서비스 IP를 조회했습니다: {retrieved_kube_dns_ip}")
-    else:
-        print("\nVPC ID 조회에 실패했습니다.")
+    # if retrieved_vpc_id:
+    #     print(f"\n성공적으로 VPC ID를 조회했습니다: {retrieved_vpc_id}")
+    #     print(f"성공적으로 서브넷 정보를 조회했습니다: {retrieved_subnets}")
+    #     print(f"성공적으로 보안 그룹 정보를 조회했습니다: {retrieved_security_groups}")
+    #     print(f"성공적으로 Bottlerocket AMI ID를 조회했습니다: {retrieved_bottlerocket_ami_id}")
+    #     print(f"성공적으로 kube-dns 서비스 IP를 조회했습니다: {retrieved_kube_dns_ip}")
+    # else:
+    #     print("\nVPC ID 조회에 실패했습니다.")

@@ -51,7 +51,8 @@ KUBECFG_PATH = os.getenv("KUBECFG_PATH")
 lithops_config = {
     "lithops": {
         "backend": "ddps_eks",
-        "storage": "aws_s3"
+        "storage": "aws_s3",
+        "execution_timeout": 3600
     },
     "ddps_eks": {
         "kubecfg_path": KUBECFG_PATH,

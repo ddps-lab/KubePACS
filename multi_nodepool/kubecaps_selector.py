@@ -11,12 +11,26 @@ import boto3
 
 azdict = {'use2-az1': 'us-east-2a', 'use2-az2': 'us-east-2b', 'use2-az3': 'us-east-2c', 'aps1-az1': 'ap-south-1a', 'aps1-az3': 'ap-south-1b', 'aps1-az2': 'ap-south-1c', 'usw2-az1': 'us-west-2a', 'usw2-az2': 'us-west-2b', 'usw2-az3': 'us-west-2c', 'usw2-az4': 'us-west-2d', 'usw2-wl1-den-wlz1': 'us-west-2-wl1-den-wlz-1', 'usw2-wl1-las-wlz1': 'us-west-2-wl1-las-wlz-1', 'usw2-wl1-phx-wlz1': 'us-west-2-wl1-phx-wlz-1', 'usw2-wl1-sea-wlz1': 'us-west-2-wl1-sea-wlz-1', 'usw2-wl1-sfo-wlz1': 'us-west-2-wl1-sfo-wlz-1', 'apne3-az3': 'ap-northeast-3a', 'apne3-az1': 'ap-northeast-3b', 'apne3-az2': 'ap-northeast-3c', 'apse1-az1': 'ap-southeast-1a', 'apse1-az2': 'ap-southeast-1b', 'apse1-az3': 'ap-southeast-1c', 'apne2-az1': 'ap-northeast-2a', 'apne2-az2': 'ap-northeast-2b', 'apne2-az3': 'ap-northeast-2c', 'apne2-az4': 'ap-northeast-2d', 'apne2-wl1-cjj-wlz1': 'ap-northeast-2-wl1-cjj-wlz-1', 'cac1-az1': 'ca-central-1a', 'cac1-az2': 'ca-central-1b', 'cac1-az4': 'ca-central-1d', 'euc1-az2': 'eu-central-1a', 'euc1-az3': 'eu-central-1b', 'euc1-az1': 'eu-central-1c', 'euw2-az2': 'eu-west-2a', 'euw2-az3': 'eu-west-2b', 'euw2-az1': 'eu-west-2c', 'euw3-az1': 'eu-west-3a', 'euw3-az2': 'eu-west-3b', 'euw3-az3': 'eu-west-3c', 'eun1-az1': 'eu-north-1a', 'eun1-az2': 'eu-north-1b', 'eun1-az3': 'eu-north-1c', 'sae1-az1': 'sa-east-1a', 'sae1-az2': 'sa-east-1b', 'sae1-az3': 'sa-east-1c', 'apne1-az4': 'ap-northeast-1a', 'apne1-az1': 'ap-northeast-1c', 'apne1-az2': 'ap-northeast-1d', 'apse2-az3': 'ap-southeast-2a', 'apse2-az1': 'ap-southeast-2b', 'apse2-az2': 'ap-southeast-2c', 'use1-az4': 'us-east-1a', 'use1-az6': 'us-east-1b', 'use1-az1': 'us-east-1c', 'use1-az2': 'us-east-1d', 'use1-az3': 'us-east-1e', 'use1-az5': 'us-east-1f', 'usw1-az3': 'us-west-1b', 'usw1-az1': 'us-west-1c', 'euw1-az3': 'eu-west-1a', 'euw1-az1': 'eu-west-1b', 'euw1-az2': 'eu-west-1c'}
 
-def azchange(az):
-    return azdict[az]
+CACHE_FILE = 'az_mapping.json'
+
+def fetch_and_cache_az_mapping(region='us-east-1'):
+    ec2 = boto3.client('ec2', region_name=region)
+    response = ec2.describe_availability_zones(AllAvailabilityZones=True)
+    mapping = {az['ZoneId']: az['ZoneName'] for az in response['AvailabilityZones']}
+    with open(f'{region}_az_mapping.json', 'w') as f:
+        json.dump(mapping, f)
+    return mapping
+
+def load_az_mapping(region='us-east-1'):
+    if os.path.exists(f'{region}_az_mapping.json'):
+        with open(f'{region}_az_mapping.json', 'r') as f:
+            return json.load(f)
+    else:
+        return fetch_and_cache_az_mapping(region)
 
 def get_aws_spot_prices(target_region='us-east-1', allow_arm=True):
     # 스팟 인스턴스 가격 데이터 URL
-    spot_price_url = "https://d26bk4799jlxhe.cloudfront.net/latest_data/latest_aws.json"
+    spot_price_url = "https://spotlake.s3.us-west-2.amazonaws.com/latest_data/latest_aws.json"
 
     try:
         response = requests.get(spot_price_url)
@@ -123,7 +137,7 @@ def load_and_preprocess(file_path, pod_cpu, pod_mem):
     df = pd.read_csv(file_path)
     df['T3'] = pd.to_numeric(df['T3'], errors='coerce')
     df.dropna(subset=['T3'], inplace=True)
-    df['Max_Instance'] = (df['T3'] * 0.4).astype(int).clip(lower=1)
+    df['Max_Instance'] = (df['T3'] * 0.1).astype(int)
     df['PodAssignable'] = df.apply(
         lambda row: min(row['vCPU'] // pod_cpu, row['Memory'] // pod_mem), axis=1)
     df = df[df['PodAssignable'] > 0].reset_index(drop=True)
@@ -358,7 +372,7 @@ def visualize_alpha_solutions(alpha_solutions, fixed_alpha_points=None, optimal_
     return optimal_point
 
 # === 8. Golden Section Nodepool Generator ===
-def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.2, right=0.8, tolerance=0.01, max_iterations=20, verbose=False):
+def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.0, right=1.0, tolerance=0.01, max_iterations=20, verbose=False, pod_over_limit=0):
     """
     황금 분할 탐색을 사용하여 최적의 alpha 값을 찾고, 해당 alpha 값에 대한 노드풀 구성을 반환합니다.
     
@@ -372,6 +386,7 @@ def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.2, right=0.
         tolerance: 허용 오차
         max_iterations: 최대 반복 횟수
         verbose: 상세 출력 여부
+        pod_over_limit: 허용 가능한 파드 수 초과 비율 (기본값: 0.05)
         
     Returns:
         최적의 alpha 값과 해당 노드풀 구성 정보를 포함한 딕셔너리
@@ -379,6 +394,7 @@ def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.2, right=0.
     if verbose:
         print("\n=== Testing getGoldenNodepool ===")
         print(f"Pod Count: {pod_count}, CPU: {pod_cpu}, Memory: {pod_mem}")
+        print(f"Pod Over Limit: {pod_over_limit}")
     
     # 황금비
     golden_ratio = (np.sqrt(5) - 1) / 2
@@ -387,8 +403,10 @@ def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.2, right=0.
     x1 = left + (1 - golden_ratio) * (right - left)
     x2 = left + golden_ratio * (right - left)
     
-    # 탐색된 alpha 값들을 저장할 리스트
+    # 탐색된 alpha 값들과 결과를 저장할 리스트
     explored_alphas = []
+    explored_podcount = []
+    all_results = []
     
     # 초기 함수 값 계산
     alpha_values = [x1]
@@ -397,8 +415,11 @@ def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.2, right=0.
     
     if not points1:
         f1 = -float('inf')
+        explored_podcount.append(0)
     else:
         f1 = points1[0]['performance'] / points1[0]['cost']
+        all_results.append(points1[0])
+        explored_podcount.append(sum(result['TotalPodsOnType'] for result in points1[0]['results']))
     
     alpha_values = [x2]
     points2 = generate_alpha_solutions(file_path, pod_count, pod_cpu, pod_mem, alpha_values, verbose=verbose)
@@ -406,8 +427,11 @@ def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.2, right=0.
     
     if not points2:
         f2 = -float('inf')
+        explored_podcount.append(0)
     else:
         f2 = points2[0]['performance'] / points2[0]['cost']
+        all_results.append(points2[0])
+        explored_podcount.append(sum(result['TotalPodsOnType'] for result in points2[0]['results']))
     
     # 최적의 alpha 값과 성능 지표
     best_alpha = None
@@ -433,8 +457,11 @@ def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.2, right=0.
             
             if not points1:
                 f1 = -float('inf')
+                explored_podcount.append(0)
             else:
                 f1 = points1[0]['performance'] / points1[0]['cost']
+                all_results.append(points1[0])
+                explored_podcount.append(sum(result['TotalPodsOnType'] for result in points1[0]['results']))
                 
                 # 현재 성능이 더 좋은 경우 업데이트
                 if f1 > best_perf_per_cost:
@@ -458,8 +485,11 @@ def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.2, right=0.
             
             if not points2:
                 f2 = -float('inf')
+                explored_podcount.append(0)
             else:
                 f2 = points2[0]['performance'] / points2[0]['cost']
+                all_results.append(points2[0])
+                explored_podcount.append(sum(result['TotalPodsOnType'] for result in points2[0]['results']))
                 
                 # 현재 성능이 더 좋은 경우 업데이트
                 if f2 > best_perf_per_cost:
@@ -473,6 +503,28 @@ def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.2, right=0.
         
         iteration += 1
     
+    # 파드 수 제한을 고려하여 최적의 결과 선택
+    max_allowed_pods = pod_count * (1 + pod_over_limit)
+    
+    # all_results를 순회하면서 최적의 결과 찾기
+    best_result = None
+    best_performance = -float('inf')
+    
+    for result in all_results:
+        actual_pods = sum(r['TotalPodsOnType'] for r in result['results'])
+        if actual_pods <= max_allowed_pods and result['performance'] > best_performance:
+            best_result = result
+            best_performance = result['performance']
+    
+    if best_result:
+        best_alpha = best_result['alpha']
+        best_cost = best_result['cost']
+        best_performance = best_result['performance']
+        best_results = best_result['results']
+        best_actual_pods = sum(result['TotalPodsOnType'] for result in best_results)
+        best_excess_pods = best_actual_pods - pod_count
+        best_perf_per_cost = best_performance / best_cost
+    
     if verbose:
         print("\n=== Best Nodepool Configuration ===")
         print(f"Optimal Alpha: {best_alpha:.3f}")
@@ -485,10 +537,11 @@ def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.2, right=0.
 
     # 결과 가공
     target_instances = []
+    az_mapping = load_az_mapping()
     for node in best_results:
         target_instances.append({
             "instance_type": str(node['Type']),
-            "availability_zone": str(azchange(node['AZ'])),
+            "availability_zone": str(az_mapping.get(node['AZ'])),
             "num_instances": int(node['Count'])
         })
 
@@ -515,15 +568,16 @@ def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.2, right=0.
         'excess_pods': best_excess_pods,
         'iterations': iteration,
         'explored_alphas': explored_alphas,
+        'explored_podcount': explored_podcount,
         'nodepool_config': target_instances
     }
 
 # === 9. Main Runner ===
 if __name__ == '__main__':
-    FILE_PATH = get_aws_spot_prices(target_region='us-east-1', allow_arm=False)
-    POD_COUNT = 200
+    FILE_PATH = get_aws_spot_prices(target_region='us-east-1', allow_arm=True)
+    POD_COUNT = 10
     POD_CPU = 2
-    POD_MEM = 16
-
+    POD_MEM = 8
+    
     # getGoldenNodepool 함수 테스트 (verbose=True로 설정하여 상세 출력)
-    result = getGoldenNodepool(FILE_PATH, POD_COUNT, POD_CPU, POD_MEM, verbose=False)
+    result = getGoldenNodepool(FILE_PATH, POD_COUNT, POD_CPU, POD_MEM, verbose=True)
