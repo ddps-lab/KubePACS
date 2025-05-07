@@ -246,3 +246,4 @@ terraform.rc
 # End of https://www.toptal.com/developers/gitignore/api/python,terraform,macos
 
 merged_coremark_spotdata_*.csv
+results/*
