@@ -11,6 +11,8 @@ provider "aws" {
 
 
 provider "helm" {
+  version = "2.17.0"
+
   kubernetes {
     host                   = module.eks.cluster_endpoint
     cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)

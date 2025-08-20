@@ -3,7 +3,7 @@ variable "awscli_profile" {
 }
 
 variable "region" {
-  default = "us-east-1"
+  default = "ap-northeast-1"
 }
 
 variable "vpc_cidr" {
@@ -13,6 +13,6 @@ variable "vpc_cidr" {
 
 variable "prefix" {
   type    = string
-  default = "kubecaps-d2"
+  default = "kubecaps-a1"
 }
 

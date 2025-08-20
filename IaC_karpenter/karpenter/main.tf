@@ -3,7 +3,8 @@ data "aws_ecrpublic_authorization_token" "token" {
 }
 
 module "karpenter" {
-  source = "terraform-aws-modules/eks/aws//modules/karpenter"
+  source  = "terraform-aws-modules/eks/aws//modules/karpenter"
+  version = "20.37.2"
 
   cluster_name           = var.cluster_name
   enable_irsa            = true

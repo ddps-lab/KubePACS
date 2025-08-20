@@ -1,5 +1,6 @@
 module "eks" {
-  source = "terraform-aws-modules/eks/aws"
+  source  = "terraform-aws-modules/eks/aws"
+  version = "20.37.2"
 
   cluster_name    = "${var.prefix}-k8s-cluster"
   cluster_version = "1.32"
@@ -14,7 +15,7 @@ module "eks" {
     for i, subnet_id in module.vpc.public_subnets :
     subnet_id
     # Check if the last character of the AZ name is 'a' or 'b'
-    if contains(["a", "b"], substr(data.aws_availability_zones.available_az.names[i], -1, 1))
+    if contains(["a", "b", "c"], substr(data.aws_availability_zones.available_az.names[i], -1, 1))
   ]
 
   eks_managed_node_group_defaults = {
@@ -22,7 +23,7 @@ module "eks" {
   }
 
   eks_managed_node_groups = {
-    kubecaps_addon_nodes_2 = {
+    kubecaps_addon_nodes = {
       vpc_security_group_ids = [module.eks.node_security_group_id, aws_security_group.worker_node_sg.id]
       ami_type               = "BOTTLEROCKET_x86_64"
       desired_size           = 1
