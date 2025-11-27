@@ -1,0 +1,21 @@
+pods,cpu,memory,nodepool_config,first_time
+10,1,2,"[{'instance_type': 'c7g.4xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 1}]",2025-05-21 17:47:50+09:00
+10,1,4,"[{'instance_type': 'm6g.4xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 1}]",2025-05-21 17:47:50+09:00
+10,2,2,"[{'instance_type': 'c6gd.8xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 1}]",2025-05-21 17:47:51+09:00
+17,7,7,"[{'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 1}]",2025-05-21 18:03:08+09:00
+50,1,2,"[{'instance_type': 'm7g.16xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 1}]",2025-05-21 17:47:51+09:00
+50,1,4,"[{'instance_type': 'm7g.16xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 1}]",2025-05-21 17:51:45+09:00
+50,2,2,"[{'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 1}]",2025-05-21 17:51:44+09:00
+75,3,5,"[{'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 1}, {'instance_type': 'm7g.12xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 1}]",2025-05-21 18:03:07+09:00
+100,1,2,"[{'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 1}]",2025-05-21 17:51:44+09:00
+100,1,4,"[{'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 1}]",2025-05-21 17:56:36+09:00
+100,2,2,"[{'instance_type': 'c7g.4xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 1}, {'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 1}]",2025-05-21 17:51:43+09:00
+115,4,2,"[{'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 3}]",2025-05-21 18:11:02+09:00
+287,1,6,"[{'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 1}, {'instance_type': 'm7g.12xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 2}, {'instance_type': 'm7g.16xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 1}]",2025-05-21 18:11:03+09:00
+400,1,2,"[{'instance_type': 'c6gd.8xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 1}, {'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 1}, {'instance_type': 'm8g.48xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 1}]",2025-05-21 17:56:35+09:00
+400,1,4,"[{'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 2}, {'instance_type': 'm7g.8xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 1}]",2025-05-21 17:56:35+09:00
+400,2,2,"[{'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 2}, {'instance_type': 'm7g.12xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 1}, {'instance_type': 'm8g.48xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 2}]",2025-05-21 17:56:34+09:00
+439,1,9,"[{'instance_type': 'x2gd.16xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 1}, {'instance_type': 'x8g.48xlarge', 'availability_zone': 'us-west-2a', 'num_instances': 2}]",2025-05-21 18:11:01+09:00
+1000,1,2,"[{'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 3}, {'instance_type': 'm7g.12xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 1}, {'instance_type': 'm8g.48xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 2}]",2025-05-21 18:03:08+09:00
+1000,1,4,"[{'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 3}, {'instance_type': 'm7g.16xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 2}, {'instance_type': 'r8g.48xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 2}]",2025-05-21 18:11:02+09:00
+1000,2,2,"[{'instance_type': 'c6gd.2xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 1}, {'instance_type': 'i8g.48xlarge', 'availability_zone': 'us-west-2c', 'num_instances': 2}, {'instance_type': 'm8g.24xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 1}, {'instance_type': 'm8g.48xlarge', 'availability_zone': 'us-west-2d', 'num_instances': 3}]",2025-05-21 18:03:09+09:00

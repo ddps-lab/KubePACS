@@ -324,12 +324,10 @@ def get_karpenter_instance_ids(kubeconfig_path, start_time, end_time):
 
         for line in logs.splitlines():
             lines_processed += 1
-            print(f"\\nDEBUG: Processing line {lines_processed}: {line[:300]}...") # Log more characters
             # Use re.search() instead of re.match() to find the pattern anywhere in the line
             timestamp_match = timestamp_pattern.search(line)
             if timestamp_match:
                 timestamp_str = timestamp_match.group(1)
-                print(f"DEBUG: Matched timestamp_str: {timestamp_str}")
                 try:
                     # 타임스탬프 문자열 파싱 (밀리초 유무 처리)
                     if '.' in timestamp_str:

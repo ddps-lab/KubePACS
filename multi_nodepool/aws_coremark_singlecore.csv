@@ -1,381 +1,768 @@
-InstanceType,CoreMark
-c5.12xlarge,28280.3929114
-c5.18xlarge,25753.4321812
-c5.24xlarge,28198.69509
-c5.2xlarge,25185.5018574
-c5.4xlarge,25416.9891866
-c5.9xlarge,25775.331019800004
-c5.large,25334.1638072
-c5.xlarge,25343.5530924
-c5a.12xlarge,25686.3364664
-c5a.16xlarge,25261.390485400003
-c5a.24xlarge,25173.024361
-c5a.2xlarge,25707.401216
-c5a.4xlarge,25652.725096799997
-c5a.8xlarge,25695.0604604
-c5a.large,25741.5259838
-c5a.xlarge,25675.7815368
-c5n.18xlarge,25763.0081642
-c5n.2xlarge,25394.801298
-c5n.4xlarge,25403.409049
-c5n.9xlarge,25765.3756172
-c5n.large,25378.780024
-c5n.xlarge,25402.903327
-c6a.12xlarge,33324.930290000004
-c6a.16xlarge,34519.2044584
-c6a.24xlarge,33373.607559000004
-c6a.2xlarge,33373.383458000004
-c6a.32xlarge,34539.950602799996
-c6a.48xlarge,33388.224271600004
-c6a.4xlarge,33305.3249148
-c6a.8xlarge,33289.65002660001
-c6a.large,33314.9004888
-c6a.xlarge,33371.1748894
-c6g.12xlarge,19340.1904786
-c6g.16xlarge,19338.6211634
-c6g.2xlarge,19334.7323786
-c6g.4xlarge,19336.901911
-c6g.8xlarge,19338.9945948
-c6g.large,19338.172986800004
-c6g.medium,19336.375908
-c6g.xlarge,19240.044134999996
-c6gn.12xlarge,19336.9770258
-c6gn.16xlarge,19332.7130206
-c6gn.2xlarge,19330.7700704
-c6gn.4xlarge,19333.908780599995
-c6gn.8xlarge,19339.3687546
-c6gn.large,19340.7147556
-c6gn.medium,19318.908766400004
-c6gn.xlarge,19338.3219264
-c6i.12xlarge,28988.062929999996
-c6i.16xlarge,28992.4932682
-c6i.24xlarge,28987.8711202
-c6i.2xlarge,28993.581941399996
-c6i.32xlarge,29018.165251799997
-c6i.4xlarge,28990.399477599996
-c6i.8xlarge,28991.614398399997
-c6i.large,28979.9723826
-c6i.xlarge,28981.01301
-c6in.12xlarge,29019.6688264
-c6in.16xlarge,29027.4226862
-c6in.24xlarge,29013.6204948
-c6in.2xlarge,28934.0283186
-c6in.32xlarge,28975.820881599997
-c6in.4xlarge,28975.161768800004
-c6in.8xlarge,28996.797534200003
-c6in.large,28961.0424924
-c6in.xlarge,28997.6357124
-c7a.12xlarge,35551.062585
-c7a.16xlarge,35578.873547400006
-c7a.24xlarge,35612.5678924
-c7a.2xlarge,35550.291669000006
-c7a.32xlarge,35597.4270538
-c7a.48xlarge,35590.310902000005
-c7a.4xlarge,35517.0023132
-c7a.8xlarge,30405.7913712
-c7a.large,35674.582822599994
-c7a.medium,35533.93280540001
-c7a.xlarge,35579.415888400006
-c7g.12xlarge,24080.2585992
-c7g.16xlarge,24072.140036799996
-c7g.2xlarge,24082.576406
-c7g.4xlarge,24085.944039600006
-c7g.8xlarge,24079.4466572
-c7g.large,24092.0907476
-c7g.medium,24081.4152806
-c7g.xlarge,24086.2931156
-c7gn.12xlarge,24076.4292834
-c7gn.16xlarge,24072.9521798
-c7gn.2xlarge,24090.2329426
-c7gn.4xlarge,24079.212249
-c7gn.8xlarge,24081.5307288
-c7gn.large,24061.1460458
-c7gn.medium,24090.3519922
-c7gn.xlarge,24086.8702568
-c7i.12xlarge,34778.3111392
-c7i.16xlarge,34370.7301538
-c7i.24xlarge,34352.6937346
-c7i.2xlarge,34927.205125199995
-c7i.48xlarge,34368.0759288
-c7i.4xlarge,34333.2174978
-c7i.8xlarge,34415.6075862
-c7i.large,33276.402084199995
-c7i.xlarge,31918.1276076
-c8g.12xlarge,28985.339696599996
-c8g.16xlarge,28986.517522600003
-c8g.24xlarge,28984.1648316
-c8g.2xlarge,28984.836842800003
-c8g.48xlarge,27923.915052000004
-c8g.4xlarge,28936.177951
-c8g.8xlarge,28981.140538999996
-c8g.large,28990.0466954
-c8g.medium,28986.350975800004
-c8g.metal-24xl,29043.091182599997
-c8g.metal-48xl,27998.658803600003
-c8g.xlarge,28973.4290674
-m5.12xlarge,23311.874026
-m5.16xlarge,21558.3255324
-m5.24xlarge,25031.0445634
-m5.2xlarge,21529.1949666
-m5.4xlarge,22261.6066038
-m5.8xlarge,21539.2119136
-m5.large,21487.9145914
-m5.xlarge,21534.0399352
-m5a.12xlarge,17001.2902464
-m5a.16xlarge,17008.674469999998
-m5a.24xlarge,16996.180620000003
-m5a.2xlarge,17008.0334594
-m5a.4xlarge,16992.7742506
-m5a.8xlarge,16986.5410094
-m5a.large,16991.2263714
-m5a.xlarge,16997.3469222
-m5n.12xlarge,25035.3071254
-m5n.16xlarge,23897.292976000004
-m5n.24xlarge,25002.528824
-m5n.2xlarge,23497.469361400003
-m5n.4xlarge,23642.4236992
-m5n.8xlarge,23170.4868246
-m5n.large,23159.3202476
-m5n.xlarge,23910.0750202
-m5zn.12xlarge,33670.963411
-m5zn.2xlarge,33697.7305016
-m5zn.3xlarge,33696.603652000005
-m5zn.6xlarge,33686.5983748
-m5zn.large,33689.556138600004
-m5zn.xlarge,33664.189208799995
-m6a.12xlarge,33522.85611420001
-m6a.16xlarge,33364.7009806
-m6a.24xlarge,33350.926862800006
-m6a.2xlarge,33335.892700200005
-m6a.32xlarge,34260.509088
-m6a.48xlarge,33360.0555802
-m6a.4xlarge,33325.586020400006
-m6a.8xlarge,33327.5873404
-m6a.large,33335.858609400006
-m6a.xlarge,33287.7836416
-m6g.12xlarge,19342.9599576
-m6g.16xlarge,19336.6024214
-m6g.2xlarge,19342.736360200004
-m6g.4xlarge,19335.256272
-m6g.8xlarge,19339.593148599997
-m6g.large,19337.722871600003
-m6g.medium,19328.8387944
-m6g.xlarge,19339.4457884
-m6i.12xlarge,28913.2309054
-m6i.16xlarge,29031.286877600003
-m6i.24xlarge,29004.035257
-m6i.2xlarge,28957.3014792
-m6i.32xlarge,28895.912892
-m6i.4xlarge,28994.1645516
-m6i.8xlarge,28994.7648462
-m6i.large,28952.036365
-m6i.xlarge,28989.554274
-m6in.12xlarge,29039.0516654
-m6in.16xlarge,29037.869522
-m6in.24xlarge,29004.426484400006
-m6in.2xlarge,28953.057775200003
-m6in.32xlarge,29032.808087200003
-m6in.4xlarge,28968.217807599995
-m6in.8xlarge,28951.3269578
-m6in.large,28956.787883
-m6in.xlarge,28988.743332
-m7a.12xlarge,35537.8869594
-m7a.16xlarge,35625.781371000005
-m7a.24xlarge,35566.21822339999
-m7a.2xlarge,35573.4485604
-m7a.32xlarge,35559.1732954
-m7a.48xlarge,35572.6817414
-m7a.4xlarge,35630.9504934
-m7a.8xlarge,35620.733535
-m7a.large,35597.8908984
-m7a.medium,35469.1661588
-m7a.xlarge,35593.8236712
-m7g.12xlarge,24298.0526854
-m7g.16xlarge,24280.108154
-m7g.2xlarge,24280.9407438
-m7g.4xlarge,24297.092525599997
-m7g.8xlarge,24288.616282
-m7g.large,24307.2543432
-m7g.medium,24331.5118844
-m7g.metal,24350.5834232
-m7g.xlarge,24294.260086
-m7gd.12xlarge,24278.5899102
-m7gd.16xlarge,24291.7769906
-m7gd.2xlarge,24285.6658698
-m7gd.4xlarge,24295.913933
-m7gd.8xlarge,24279.1627852
-m7gd.large,24311.2823744
-m7gd.medium,24323.827836
-m7gd.metal,24357.3511372
-m7gd.xlarge,24306.6615738
-m7i-flex.2xlarge,34847.849836199995
-m7i-flex.4xlarge,34834.042632599994
-m7i-flex.8xlarge,34807.886400999996
-m7i-flex.large,34817.0428886
-m7i-flex.xlarge,34818.577664000004
-m7i.12xlarge,34290.7909594
-m7i.16xlarge,34337.3600746
-m7i.24xlarge,34341.39411760001
-m7i.2xlarge,34502.0987822
-m7i.48xlarge,34387.444791999995
-m7i.4xlarge,34393.8374396
-m7i.8xlarge,34267.728393599995
-m7i.large,34922.852472399994
-m7i.xlarge,31511.116901
-m8g.12xlarge,28982.484259
-m8g.16xlarge,28987.860716200004
-m8g.24xlarge,28983.4933556
-m8g.2xlarge,28981.1396044
-m8g.48xlarge,27921.5754906
-m8g.4xlarge,28943.9671958
-m8g.8xlarge,28983.8282712
-m8g.large,28984.5006812
-m8g.medium,28970.2379818
-m8g.metal-48xl,28001.323002200003
-m8g.xlarge,28985.8445084
-r5.12xlarge,25106.0895558
-r5.16xlarge,23138.969002
-r5.24xlarge,25101.5488438
-r5.2xlarge,23157.4809938
-r5.4xlarge,23189.498612000003
-r5.8xlarge,23163.177744
-r5.large,23139.1854922
-r5.xlarge,23165.421097
-r5a.12xlarge,16971.3349448
-r5a.16xlarge,16752.004235200002
-r5a.24xlarge,16853.4135502
-r5a.2xlarge,16989.3689954
-r5a.4xlarge,17011.155944399998
-r5a.8xlarge,16999.4311834
-r5a.large,16915.113766200004
-r5a.xlarge,16977.586285999998
-r5b.12xlarge,25059.6538636
-r5b.16xlarge,23920.0184832
-r5b.24xlarge,25021.339616200003
-r5b.2xlarge,23936.0482632
-r5b.4xlarge,23146.9630418
-r5b.8xlarge,23938.1172104
-r5b.large,23929.4200492
-r5b.xlarge,23913.956567000005
-r5n.12xlarge,25022.027633
-r5n.16xlarge,23177.227494
-r5n.24xlarge,25023.693193000003
-r5n.2xlarge,23924.942443400003
-r5n.4xlarge,23479.3262332
-r5n.8xlarge,23150.0173536
-r5n.large,23913.272210199997
-r5n.xlarge,23885.442948
-r6a.12xlarge,34513.723203199996
-r6a.16xlarge,34425.4726516
-r6a.24xlarge,32987.9077922
-r6a.2xlarge,33369.403579
-r6a.32xlarge,34452.409133199995
-r6a.48xlarge,33346.92279299999
-r6a.4xlarge,32801.894509599995
-r6a.8xlarge,33314.439718
-r6a.large,33359.37735720001
-r6a.xlarge,33331.1447322
-r6g.12xlarge,19342.1370646
-r6g.16xlarge,19339.070679400003
-r6g.2xlarge,19342.061158
-r6g.4xlarge,19333.535245
-r6g.8xlarge,19333.7593208
-r6g.large,19335.8529184
-r6g.medium,19335.10555
-r6g.xlarge,19340.191838600003
-r6i.12xlarge,28960.7544498
-r6i.16xlarge,29000.555173
-r6i.24xlarge,28989.500661799997
-r6i.2xlarge,29005.1851824
-r6i.32xlarge,28993.6617708
-r6i.4xlarge,28946.0133376
-r6i.8xlarge,29027.5774204
-r6i.large,28978.137696800004
-r6i.xlarge,28951.9039336
-r6in.12xlarge,28999.8199294
-r6in.16xlarge,29030.456523
-r6in.24xlarge,29007.549157400004
-r6in.2xlarge,29024.5758708
-r6in.32xlarge,28971.875437800005
-r6in.4xlarge,28981.0300328
-r6in.8xlarge,28979.4757428
-r6in.large,28982.6698086
-r6in.xlarge,29002.831699
-r7a.12xlarge,35594.098298
-r7a.16xlarge,35552.02395340001
-r7a.24xlarge,35605.2477766
-r7a.2xlarge,35584.9629768
-r7a.32xlarge,35624.4450724
-r7a.48xlarge,35643.6463564
-r7a.4xlarge,35601.1796332
-r7a.8xlarge,35566.829638
-r7a.large,35626.7616784
-r7a.medium,35571.0988776
-r7a.xlarge,35510.57794519999
-r7g.12xlarge,24073.0669812
-r7g.16xlarge,24069.1302852
-r7g.2xlarge,24077.3574614
-r7g.4xlarge,24077.0095074
-r7g.8xlarge,24083.3886114
-r7g.large,24079.6750146
-r7g.medium,24085.4820246
-r7g.xlarge,24078.167410400005
-r7i.12xlarge,34303.2326352
-r7i.16xlarge,34294.7839738
-r7i.24xlarge,34375.390687
-r7i.2xlarge,31225.026048
-r7i.48xlarge,34337.6371492
-r7i.4xlarge,34601.8810342
-r7i.8xlarge,34785.947861
-r7i.large,34697.75583940001
-r7i.xlarge,34301.1909938
-r7iz.12xlarge,35860.09764139999
-r7iz.16xlarge,35871.1167232
-r7iz.2xlarge,35854.9903118
-r7iz.32xlarge,35912.8514916
-r7iz.4xlarge,35862.87535839999
-r7iz.8xlarge,35866.3119806
-r7iz.large,35805.645069000006
-r7iz.xlarge,35764.321865599995
-r8g.12xlarge,28983.8286316
-r8g.24xlarge,28987.1890368
-r8g.2xlarge,28989.3728626
-r8g.4xlarge,28981.1499764
-r8g.8xlarge,28952.401559
-r8g.large,28983.3231188
-r8g.medium,28979.4784516
-r8g.metal-24xl,29003.9792112
-r8g.metal-48xl,27998.6579516
-r8g.xlarge,28989.036983799997
-t2.2xlarge,18582.0922232
-t2.large,18595.943173
-t2.medium,18677.2431552
-t2.micro,18680.147313200003
-t2.small,18456.5978276
-t2.xlarge,18656.670523
-t3.2xlarge,19030.8208542
-t3.large,18001.996257799998
-t3.medium,16266.4390122
-t3.micro,18372.679650600003
-t3.nano,19838.448677
-t3.small,17236.0433724
-t3.xlarge,17927.5861616
-t4g.2xlarge,18300.0613522
-t4g.large,18018.7907948
-t4g.medium,18380.1536048
-t4g.micro,18357.8917948
-t4g.nano,18328.2761066
-t4g.small,18403.36735
-t4g.xlarge,17963.9244202
-x8g.12xlarge,28977.782499400004
-x8g.16xlarge,28990.8860706
-x8g.24xlarge,28982.3159886
-x8g.2xlarge,28965.5865596
-x8g.48xlarge,27930.465304399997
-x8g.4xlarge,28948.8391302
-x8g.8xlarge,28985.8438458
-x8g.large,28984.836102399997
-x8g.medium,28966.548239000003
-x8g.metal-24xl,29010.1707666
-x8g.metal-48xl,28000.852160600003
-x8g.xlarge,28993.4080554
+InstanceType,InstanceFamily,InstanceCategory,InstanceCharacter,vCPU,Memory,CoreMark,CpuModel,ModelName,Vendor
+a1.medium,a1,General,a,1,2.0,,Cortex-A72,Cortex-A72,AWS
+a1.large,a1,General,a,2,4.0,,Cortex-A72,Cortex-A72,AWS
+a1.xlarge,a1,General,a,4,8.0,,Cortex-A72,Cortex-A72,AWS
+a1.2xlarge,a1,General,a,8,16.0,,Cortex-A72,Cortex-A72,AWS
+a1.4xlarge,a1,General,a,16,32.0,,Cortex-A72,Cortex-A72,AWS
+c1.medium,c1,Computing,c,1,1.0,,Intel(R) Xeon(R) CPU E5-2651 v2 @ 1.80GHz,Intel(R) Xeon(R) CPU E5-2651 v2 @ 1.80GHz,Intel
+c1.xlarge,c1,Computing,c,4,7.0,,Intel(R) Xeon(R) CPU E5-2650 0 @ 2.00GHz,Intel(R) Xeon(R) CPU E5-2650 0 @ 2.00GHz,Intel
+c3.large,c3,Computing,c,2,3.0,,Intel(R) Xeon(R) CPU E5-2680 v2 @ 2.80GHz,Intel(R) Xeon(R) CPU E5-2680 v2 @ 2.80GHz,Intel
+c3.xlarge,c3,Computing,c,4,7.0,,Intel(R) Xeon(R) CPU E5-2680 v2 @ 2.80GHz,Intel(R) Xeon(R) CPU E5-2680 v2 @ 2.80GHz,Intel
+c3.2xlarge,c3,Computing,c,8,15.0,,Intel(R) Xeon(R) CPU E5-2680 v2 @ 2.80GHz,Intel(R) Xeon(R) CPU E5-2680 v2 @ 2.80GHz,Intel
+c3.4xlarge,c3,Computing,c,16,30.0,,Intel(R) Xeon(R) CPU E5-2680 v2 @ 2.80GHz,Intel(R) Xeon(R) CPU E5-2680 v2 @ 2.80GHz,Intel
+c3.8xlarge,c3,Computing,c,32,60.0,,Intel(R) Xeon(R) CPU E5-2680 v2 @ 2.80GHz,Intel(R) Xeon(R) CPU E5-2680 v2 @ 2.80GHz,Intel
+c4.large,c4,Computing,c,2,3.0,,Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz,Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz,Intel
+c4.xlarge,c4,Computing,c,4,7.0,,Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz,Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz,Intel
+c4.2xlarge,c4,Computing,c,8,15.0,,Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz,Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz,Intel
+c4.4xlarge,c4,Computing,c,16,30.0,,Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz,Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz,Intel
+c4.8xlarge,c4,Computing,c,32,60.0,,Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz,Intel(R) Xeon(R) CPU E5-2666 v3 @ 2.90GHz,Intel
+c5.large,c5,Computing,c,2,4.0,25334.1638072,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5.xlarge,c5,Computing,c,4,8.0,25343.5530924,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5.2xlarge,c5,Computing,c,8,16.0,25185.5018574,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5.4xlarge,c5,Computing,c,16,32.0,25416.9891866,Intel(R) Xeon(R) Platinum 8223CL CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel
+c5.9xlarge,c5,Computing,c,36,72.0,25775.331019800004,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5.12xlarge,c5,Computing,c,48,96.0,28280.3929114,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel
+c5.18xlarge,c5,Computing,c,72,144.0,25753.4321812,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5.24xlarge,c5,Computing,c,96,192.0,28198.69509,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel
+c5a.large,c5a,Computing,c,2,4.0,25741.5259838,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5a.xlarge,c5a,Computing,c,4,8.0,25675.7815368,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5a.2xlarge,c5a,Computing,c,8,16.0,25707.401216,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5a.4xlarge,c5a,Computing,c,16,32.0,25652.725096799997,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5a.8xlarge,c5a,Computing,c,32,64.0,25695.0604604,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5a.12xlarge,c5a,Computing,c,48,96.0,25686.3364664,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5a.16xlarge,c5a,Computing,c,64,128.0,25261.390485400003,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5a.24xlarge,c5a,Computing,c,96,192.0,25173.024361,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5ad.large,c5ad,Computing,c,2,4.0,25722.6759,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5ad.xlarge,c5ad,Computing,c,4,8.0,25603.8914,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5ad.2xlarge,c5ad,Computing,c,8,16.0,25382.921,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5ad.4xlarge,c5ad,Computing,c,16,32.0,25670.1421,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5ad.8xlarge,c5ad,Computing,c,32,64.0,25690.6216,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5ad.12xlarge,c5ad,Computing,c,48,96.0,25675.4019,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5ad.16xlarge,c5ad,Computing,c,64,128.0,25258.0656,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5ad.24xlarge,c5ad,Computing,c,96,192.0,25209.2465,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+c5d.large,c5d,Computing,c,2,4.0,25379.4678,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5d.xlarge,c5d,Computing,c,4,8.0,25422.1435,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5d.2xlarge,c5d,Computing,c,8,16.0,25406.7688,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5d.4xlarge,c5d,Computing,c,16,32.0,25389.2496,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5d.9xlarge,c5d,Computing,c,36,72.0,25792.6322,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5d.12xlarge,c5d,Computing,c,48,96.0,28283.4333,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel
+c5d.18xlarge,c5d,Computing,c,72,144.0,25760.2507,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5d.24xlarge,c5d,Computing,c,96,192.0,28263.4929,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel
+c5n.large,c5n,Computing,c,2,5.0,25378.780024,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5n.xlarge,c5n,Computing,c,4,10.0,25402.903327,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5n.2xlarge,c5n,Computing,c,8,21.0,25394.801298,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5n.4xlarge,c5n,Computing,c,16,42.0,25403.409049,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5n.9xlarge,c5n,Computing,c,36,96.0,25765.3756172,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c5n.18xlarge,c5n,Computing,c,72,192.0,25763.0081642,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz,Intel
+c6a.large,c6a,Computing,c,2,4.0,33314.9004888,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+c6a.xlarge,c6a,Computing,c,4,8.0,33371.1748894,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+c6a.2xlarge,c6a,Computing,c,8,16.0,33373.383458000004,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+c6a.4xlarge,c6a,Computing,c,16,32.0,33305.3249148,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+c6a.8xlarge,c6a,Computing,c,32,64.0,33289.65002660001,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+c6a.12xlarge,c6a,Computing,c,48,96.0,33324.930290000004,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+c6a.16xlarge,c6a,Computing,c,64,128.0,34519.2044584,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+c6a.24xlarge,c6a,Computing,c,96,192.0,33373.607559000004,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+c6a.32xlarge,c6a,Computing,c,128,256.0,34539.950602799996,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+c6a.48xlarge,c6a,Computing,c,192,384.0,33388.224271600004,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+c6g.medium,c6g,Computing,c,1,2.0,19336.375908,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6g.large,c6g,Computing,c,2,4.0,19338.172986800004,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6g.xlarge,c6g,Computing,c,4,8.0,19240.044134999996,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6g.2xlarge,c6g,Computing,c,8,16.0,19334.7323786,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6g.4xlarge,c6g,Computing,c,16,32.0,19336.901911,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6g.8xlarge,c6g,Computing,c,32,64.0,19338.9945948,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6g.12xlarge,c6g,Computing,c,48,96.0,19340.1904786,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6g.16xlarge,c6g,Computing,c,64,128.0,19338.6211634,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gd.medium,c6gd,Computing,c,1,2.0,19343.0382,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gd.large,c6gd,Computing,c,2,4.0,19339.7418,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gd.xlarge,c6gd,Computing,c,4,8.0,19339.6675,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gd.2xlarge,c6gd,Computing,c,8,16.0,19332.938,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gd.4xlarge,c6gd,Computing,c,16,32.0,19340.5703,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gd.8xlarge,c6gd,Computing,c,32,64.0,19343.8567,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gd.12xlarge,c6gd,Computing,c,48,96.0,19335.1098,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gd.16xlarge,c6gd,Computing,c,64,128.0,19331.0703,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gn.medium,c6gn,Computing,c,1,2.0,19318.908766400004,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gn.large,c6gn,Computing,c,2,4.0,19340.7147556,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gn.xlarge,c6gn,Computing,c,4,8.0,19338.3219264,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gn.2xlarge,c6gn,Computing,c,8,16.0,19330.7700704,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gn.4xlarge,c6gn,Computing,c,16,32.0,19333.908780599995,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gn.8xlarge,c6gn,Computing,c,32,64.0,19339.3687546,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gn.12xlarge,c6gn,Computing,c,48,96.0,19336.9770258,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6gn.16xlarge,c6gn,Computing,c,64,128.0,19332.7130206,AWS Graviton2 Processor,Neoverse-N1,AWS
+c6i.large,c6i,Computing,c,2,4.0,28979.9723826,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6i.xlarge,c6i,Computing,c,4,8.0,28981.01301,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6i.2xlarge,c6i,Computing,c,8,16.0,28993.581941399996,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6i.4xlarge,c6i,Computing,c,16,32.0,28990.399477599996,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6i.8xlarge,c6i,Computing,c,32,64.0,28991.614398399997,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6i.12xlarge,c6i,Computing,c,48,96.0,28988.062929999996,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6i.16xlarge,c6i,Computing,c,64,128.0,28992.4932682,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6i.24xlarge,c6i,Computing,c,96,192.0,28987.8711202,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6i.32xlarge,c6i,Computing,c,128,256.0,29018.165251799997,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6id.large,c6id,Computing,c,2,4.0,28984.3719,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6id.xlarge,c6id,Computing,c,4,8.0,28966.9726,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6id.2xlarge,c6id,Computing,c,8,16.0,28941.9924,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6id.4xlarge,c6id,Computing,c,16,32.0,28976.8133,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6id.8xlarge,c6id,Computing,c,32,64.0,28993.0782,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6id.12xlarge,c6id,Computing,c,48,96.0,28961.0229,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6id.16xlarge,c6id,Computing,c,64,128.0,28990.2103,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6id.24xlarge,c6id,Computing,c,96,192.0,29012.2559,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6id.32xlarge,c6id,Computing,c,128,256.0,29015.6428,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6in.large,c6in,Computing,c,2,4.0,28961.0424924,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6in.xlarge,c6in,Computing,c,4,8.0,28997.6357124,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6in.2xlarge,c6in,Computing,c,8,16.0,28934.0283186,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6in.4xlarge,c6in,Computing,c,16,32.0,28975.161768800004,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6in.8xlarge,c6in,Computing,c,32,64.0,28996.797534200003,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6in.12xlarge,c6in,Computing,c,48,96.0,29019.6688264,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6in.16xlarge,c6in,Computing,c,64,128.0,29027.4226862,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6in.24xlarge,c6in,Computing,c,96,192.0,29013.6204948,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c6in.32xlarge,c6in,Computing,c,128,256.0,28975.820881599997,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+c7a.medium,c7a,Computing,c,1,2.0,35533.93280540001,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+c7a.large,c7a,Computing,c,2,4.0,35674.582822599994,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+c7a.xlarge,c7a,Computing,c,4,8.0,35579.415888400006,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+c7a.2xlarge,c7a,Computing,c,8,16.0,35550.291669000006,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+c7a.4xlarge,c7a,Computing,c,16,32.0,35517.0023132,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+c7a.8xlarge,c7a,Computing,c,32,64.0,30405.7913712,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+c7a.12xlarge,c7a,Computing,c,48,96.0,35551.062585,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+c7a.16xlarge,c7a,Computing,c,64,128.0,35578.873547400006,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+c7a.24xlarge,c7a,Computing,c,96,192.0,35612.5678924,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+c7a.32xlarge,c7a,Computing,c,128,256.0,35597.4270538,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+c7a.48xlarge,c7a,Computing,c,192,384.0,35590.310902000005,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+c7g.medium,c7g,Computing,c,1,2.0,24081.4152806,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7g.large,c7g,Computing,c,2,4.0,24092.0907476,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7g.xlarge,c7g,Computing,c,4,8.0,24086.2931156,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7g.2xlarge,c7g,Computing,c,8,16.0,24082.576406,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7g.4xlarge,c7g,Computing,c,16,32.0,24085.944039600006,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7g.8xlarge,c7g,Computing,c,32,64.0,24079.4466572,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7g.12xlarge,c7g,Computing,c,48,96.0,24080.2585992,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7g.16xlarge,c7g,Computing,c,64,128.0,24072.140036799996,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gd.medium,c7gd,Computing,c,1,2.0,24077.081,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gd.large,c7gd,Computing,c,2,4.0,24088.8414,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gd.xlarge,c7gd,Computing,c,4,8.0,24077.081,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gd.2xlarge,c7gd,Computing,c,8,16.0,24077.081,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gd.4xlarge,c7gd,Computing,c,16,32.0,24085.0119,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gd.8xlarge,c7gd,Computing,c,32,64.0,24077.081,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gd.12xlarge,c7gd,Computing,c,48,96.0,24069.595,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gd.16xlarge,c7gd,Computing,c,64,128.0,24077.081,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gn.medium,c7gn,Computing,c,1,2.0,24090.3519922,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gn.large,c7gn,Computing,c,2,4.0,24061.1460458,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gn.xlarge,c7gn,Computing,c,4,8.0,24086.8702568,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gn.2xlarge,c7gn,Computing,c,8,16.0,24090.2329426,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gn.4xlarge,c7gn,Computing,c,16,32.0,24079.212249,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gn.8xlarge,c7gn,Computing,c,32,64.0,24081.5307288,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gn.12xlarge,c7gn,Computing,c,48,96.0,24076.4292834,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7gn.16xlarge,c7gn,Computing,c,64,128.0,24072.9521798,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+c7i.large,c7i,Computing,c,2,4.0,33276.402084199995,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i.xlarge,c7i,Computing,c,4,8.0,31918.1276076,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i.2xlarge,c7i,Computing,c,8,16.0,34927.205125199995,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i.4xlarge,c7i,Computing,c,16,32.0,34333.2174978,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i.8xlarge,c7i,Computing,c,32,64.0,34415.6075862,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i.12xlarge,c7i,Computing,c,48,96.0,34778.3111392,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i.16xlarge,c7i,Computing,c,64,128.0,34370.7301538,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i.24xlarge,c7i,Computing,c,96,192.0,34352.6937346,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i.48xlarge,c7i,Computing,c,192,384.0,34368.0759288,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i-flex.large,c7i-flex,Computing,c,2,4.0,34210.7263,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i-flex.xlarge,c7i-flex,Computing,c,4,8.0,34210.7263,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i-flex.2xlarge,c7i-flex,Computing,c,8,16.0,34210.7263,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i-flex.4xlarge,c7i-flex,Computing,c,16,32.0,34210.7263,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c7i-flex.8xlarge,c7i-flex,Computing,c,32,64.0,34210.7263,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+c8g.medium,c8g,Computing,c,1,2.0,28986.350975800004,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+c8g.large,c8g,Computing,c,2,4.0,28990.0466954,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+c8g.xlarge,c8g,Computing,c,4,8.0,28973.4290674,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+c8g.2xlarge,c8g,Computing,c,8,16.0,28984.836842800003,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+c8g.4xlarge,c8g,Computing,c,16,32.0,28936.177951,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+c8g.8xlarge,c8g,Computing,c,32,64.0,28981.140538999996,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+c8g.12xlarge,c8g,Computing,c,48,96.0,28985.339696599996,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+c8g.16xlarge,c8g,Computing,c,64,128.0,28986.517522600003,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+c8g.24xlarge,c8g,Computing,c,96,192.0,28984.1648316,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+c8g.48xlarge,c8g,Computing,c,192,384.0,27923.915052000004,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+d2.xlarge,d2,Storage,d,4,30.0,,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel
+d2.2xlarge,d2,Storage,d,8,61.0,,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel
+d2.4xlarge,d2,Storage,d,16,122.0,,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel
+d2.8xlarge,d2,Storage,d,32,244.0,,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel
+d3.xlarge,d3,Storage,d,4,32.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+d3.2xlarge,d3,Storage,d,8,64.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+d3.4xlarge,d3,Storage,d,16,128.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+d3.8xlarge,d3,Storage,d,32,256.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+d3en.xlarge,d3en,Storage,d,4,16.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+d3en.2xlarge,d3en,Storage,d,8,32.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+d3en.4xlarge,d3en,Storage,d,16,64.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+d3en.8xlarge,d3en,Storage,d,32,128.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+d3en.12xlarge,d3en,Storage,d,48,192.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+d3en.6xlarge,d3en,Storage,d,24,96.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+dl1.24xlarge,dl1,AC,dl,96,768.0,28252.2637,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel
+f1.2xlarge,f1,AC,f,8,122.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+f1.4xlarge,f1,AC,f,16,244.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+f1.16xlarge,f1,AC,f,64,976.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+f2.12xlarge,f2,AC,f,48,512.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+f2.48xlarge,f2,AC,f,192,2048.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g4ad.xlarge,g4ad,AC,g,4,16.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g4ad.2xlarge,g4ad,AC,g,8,32.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g4ad.4xlarge,g4ad,AC,g,16,64.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g4ad.8xlarge,g4ad,AC,g,32,128.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g4ad.16xlarge,g4ad,AC,g,64,256.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g4dn.xlarge,g4dn,AC,g,4,16.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+g4dn.2xlarge,g4dn,AC,g,8,32.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+g4dn.4xlarge,g4dn,AC,g,16,64.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+g4dn.8xlarge,g4dn,AC,g,32,128.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+g4dn.12xlarge,g4dn,AC,g,48,192.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+g4dn.16xlarge,g4dn,AC,g,64,256.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+g5.xlarge,g5,AC,g,4,16.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g5.2xlarge,g5,AC,g,8,32.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g5.4xlarge,g5,AC,g,16,64.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g5.8xlarge,g5,AC,g,32,128.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g5.12xlarge,g5,AC,g,48,192.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g5.16xlarge,g5,AC,g,64,256.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g5.24xlarge,g5,AC,g,96,384.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g5.48xlarge,g5,AC,g,192,768.0,25550.3882,AMD EPYC 7R32,AMD EPYC 7R32,AMD
+g5g.xlarge,g5g,AC,g,4,8.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+g5g.2xlarge,g5g,AC,g,8,16.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+g5g.4xlarge,g5g,AC,g,16,32.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+g5g.8xlarge,g5g,AC,g,32,64.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+g5g.16xlarge,g5g,AC,g,64,128.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+g6.xlarge,g6,AC,g,4,16.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6.2xlarge,g6,AC,g,8,32.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6.4xlarge,g6,AC,g,16,64.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6.8xlarge,g6,AC,g,32,128.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6.12xlarge,g6,AC,g,48,192.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6.16xlarge,g6,AC,g,64,256.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6.24xlarge,g6,AC,g,96,384.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6.48xlarge,g6,AC,g,192,768.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6e.xlarge,g6e,AC,g,4,32.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6e.2xlarge,g6e,AC,g,8,64.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6e.4xlarge,g6e,AC,g,16,128.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6e.8xlarge,g6e,AC,g,32,256.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6e.12xlarge,g6e,AC,g,48,384.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6e.16xlarge,g6e,AC,g,64,512.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6e.24xlarge,g6e,AC,g,96,768.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+g6e.48xlarge,g6e,AC,g,192,1536.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+gr6.4xlarge,gr6,gr,gr,16,128.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+gr6.8xlarge,gr6,gr,gr,32,256.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+h1.2xlarge,h1,Storage,h,8,32.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+h1.4xlarge,h1,Storage,h,16,64.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+h1.8xlarge,h1,Storage,h,32,128.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+h1.16xlarge,h1,Storage,h,64,256.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+i2.xlarge,i2,Storage,i,4,30.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+i2.2xlarge,i2,Storage,i,8,61.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+i2.4xlarge,i2,Storage,i,16,122.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+i2.8xlarge,i2,Storage,i,32,244.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+i3.large,i3,Storage,i,2,15.0,23883.6025,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+i3.xlarge,i3,Storage,i,4,30.0,23883.6025,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+i3.2xlarge,i3,Storage,i,8,61.0,23883.6025,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+i3.4xlarge,i3,Storage,i,16,122.0,23883.6025,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+i3.8xlarge,i3,Storage,i,32,244.0,23883.6025,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+i3.16xlarge,i3,Storage,i,64,488.0,23883.6025,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+i3en.large,i3en,Storage,i,2,16.0,23738.917,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+i3en.xlarge,i3en,Storage,i,4,32.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+i3en.2xlarge,i3en,Storage,i,8,64.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+i3en.12xlarge,i3en,Storage,i,48,384.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+i3en.24xlarge,i3en,Storage,i,96,768.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+i3en.3xlarge,i3en,Storage,i,12,96.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+i3en.6xlarge,i3en,Storage,i,24,192.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+i4g.large,i4g,Storage,i,2,16.0,19336.1335,AWS Graviton2 Processor,AWS Graviton2 Processor,AWS
+i4g.xlarge,i4g,Storage,i,4,32.0,19336.1335,AWS Graviton2 Processor,AWS Graviton2 Processor,AWS
+i4g.2xlarge,i4g,Storage,i,8,64.0,19336.1335,AWS Graviton2 Processor,AWS Graviton2 Processor,AWS
+i4g.4xlarge,i4g,Storage,i,16,128.0,19336.1335,AWS Graviton2 Processor,AWS Graviton2 Processor,AWS
+i4g.8xlarge,i4g,Storage,i,32,256.0,19336.1335,AWS Graviton2 Processor,AWS Graviton2 Processor,AWS
+i4g.16xlarge,i4g,Storage,i,64,512.0,19336.1335,AWS Graviton2 Processor,AWS Graviton2 Processor,AWS
+i4i.large,i4i,Storage,i,2,16.0,28985.5594,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+i4i.xlarge,i4i,Storage,i,4,32.0,28985.5594,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+i4i.2xlarge,i4i,Storage,i,8,64.0,28985.5594,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+i4i.4xlarge,i4i,Storage,i,16,128.0,28985.5594,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+i4i.8xlarge,i4i,Storage,i,32,256.0,28985.5594,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+i4i.12xlarge,i4i,Storage,i,48,384.0,28985.5594,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,AWS
+i4i.16xlarge,i4i,Storage,i,64,512.0,28985.5594,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+i4i.24xlarge,i4i,Storage,i,96,768.0,28985.5594,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+i4i.32xlarge,i4i,Storage,i,128,1024.0,28985.5594,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+i7ie.large,i7ie,Storage,i,2,16.0,,Intel Xeon Platinum 8559C,Intel Xeon Platinum 8559C,Intel
+i7ie.xlarge,i7ie,Storage,i,4,32.0,,Intel Xeon Platinum 8559C,Intel Xeon Platinum 8559C,Intel
+i7ie.2xlarge,i7ie,Storage,i,8,64.0,,Intel Xeon Platinum 8559C,Intel Xeon Platinum 8559C,Intel
+i7ie.12xlarge,i7ie,Storage,i,48,384.0,,Intel Xeon Platinum 8559C,Intel Xeon Platinum 8559C,Intel
+i7ie.18xlarge,i7ie,Storage,i,72,576.0,,Intel Xeon Platinum 8559C,Intel Xeon Platinum 8559C,Intel
+i7ie.24xlarge,i7ie,Storage,i,96,768.0,,Intel Xeon Platinum 8559C,Intel Xeon Platinum 8559C,Intel
+i7ie.3xlarge,i7ie,Storage,i,12,96.0,,Intel Xeon Platinum 8559C,Intel Xeon Platinum 8559C,Intel
+i7ie.48xlarge,i7ie,Storage,i,192,1536.0,,Intel Xeon Platinum 8559C,Intel Xeon Platinum 8559C,Intel
+i7ie.6xlarge,i7ie,Storage,i,24,192.0,,Intel Xeon Platinum 8559C,Intel Xeon Platinum 8559C,Intel
+i8g.large,i8g,Storage,i,2,16.0,,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+i8g.xlarge,i8g,Storage,i,4,32.0,,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+i8g.2xlarge,i8g,Storage,i,8,64.0,,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+i8g.4xlarge,i8g,Storage,i,16,128.0,,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+i8g.8xlarge,i8g,Storage,i,32,256.0,,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+i8g.12xlarge,i8g,Storage,i,48,384.0,,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+i8g.16xlarge,i8g,Storage,i,64,512.0,,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+i8g.24xlarge,i8g,Storage,i,96,768.0,,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+im4gn.large,im4gn,Storage,im,2,8.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+im4gn.xlarge,im4gn,Storage,im,4,16.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+im4gn.2xlarge,im4gn,Storage,im,8,32.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+im4gn.4xlarge,im4gn,Storage,im,16,64.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+im4gn.8xlarge,im4gn,Storage,im,32,128.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+im4gn.16xlarge,im4gn,Storage,im,64,256.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+inf1.xlarge,inf1,AC,inf,4,8.0,28252.2637,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel
+inf1.2xlarge,inf1,AC,inf,8,16.0,28252.2637,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel
+inf1.24xlarge,inf1,AC,inf,96,192.0,28252.2637,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel
+inf1.6xlarge,inf1,AC,inf,24,48.0,28252.2637,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel(R) Xeon(R) Platinum 8275CL CPU @ 3.00GHz,Intel
+inf2.xlarge,inf2,AC,inf,4,16.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+inf2.8xlarge,inf2,AC,inf,32,128.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+inf2.24xlarge,inf2,AC,inf,96,384.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+inf2.48xlarge,inf2,AC,inf,192,768.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+is4gen.medium,is4gen,Storage,is,1,6.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+is4gen.large,is4gen,Storage,is,2,12.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+is4gen.xlarge,is4gen,Storage,is,4,24.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+is4gen.2xlarge,is4gen,Storage,is,8,48.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+is4gen.4xlarge,is4gen,Storage,is,16,96.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+is4gen.8xlarge,is4gen,Storage,is,32,192.0,19336.1335,AWS Graviton2 Processor,Neoverse-N1,AWS
+m1.small,m1,General,m,1,1.0,,Intel(R) Xeon(R) CPU E5-2651 v2 @ 1.80GHz,Intel(R) Xeon(R) CPU E5-2651 v2 @ 1.80GHz,Intel
+m1.medium,m1,General,m,1,3.0,,Intel(R) Xeon(R) CPU E5-2651 v2 @ 1.80GHz,Intel(R) Xeon(R) CPU E5-2651 v2 @ 1.80GHz,Intel
+m1.large,m1,General,m,2,7.0,,Intel(R) Xeon(R) CPU E5-2651 v2 @ 1.80GHz,Intel(R) Xeon(R) CPU E5-2651 v2 @ 1.80GHz,Intel
+m1.xlarge,m1,General,m,4,15.0,,Intel(R) Xeon(R) CPU E5-2651 v2 @ 1.80GHz,Intel(R) Xeon(R) CPU E5-2651 v2 @ 1.80GHz,Intel
+m2.xlarge,m2,General,m,4,17.0,,Intel(R) Xeon(R) CPU E5-2665 0 @ 2.40GHz,Intel(R) Xeon(R) CPU E5-2665 0 @ 2.40GHz,Intel
+m2.2xlarge,m2,General,m,8,34.0,,Intel(R) Xeon(R) CPU E5-2665 0 @ 2.40GHz,Intel(R) Xeon(R) CPU E5-2665 0 @ 2.40GHz,Intel
+m2.4xlarge,m2,General,m,16,68.0,,Intel(R) Xeon(R) CPU E5-2665 0 @ 2.40GHz,Intel(R) Xeon(R) CPU E5-2665 0 @ 2.40GHz,Intel
+m3.medium,m3,General,m,1,3.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+m3.large,m3,General,m,2,7.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+m3.xlarge,m3,General,m,4,15.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+m3.2xlarge,m3,General,m,8,30.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+m4.large,m4,General,m,2,8.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+m4.xlarge,m4,General,m,4,16.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+m4.2xlarge,m4,General,m,8,32.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+m4.4xlarge,m4,General,m,16,64.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+m4.16xlarge,m4,General,m,64,256.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+m4.10xlarge,m4,General,m,40,160.0,,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel
+m5.large,m5,General,m,2,8.0,21487.9145914,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+m5.xlarge,m5,General,m,4,16.0,21534.0399352,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5.2xlarge,m5,General,m,8,32.0,21529.1949666,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+m5.4xlarge,m5,General,m,16,64.0,22261.6066038,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5.8xlarge,m5,General,m,32,128.0,21539.2119136,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5.12xlarge,m5,General,m,48,192.0,23311.874026,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5.16xlarge,m5,General,m,64,256.0,21558.3255324,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+m5.24xlarge,m5,General,m,96,384.0,25031.0445634,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5a.large,m5a,General,m,2,8.0,16991.2263714,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5a.xlarge,m5a,General,m,4,16.0,16997.3469222,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5a.2xlarge,m5a,General,m,8,32.0,17008.0334594,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5a.4xlarge,m5a,General,m,16,64.0,16992.7742506,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5a.8xlarge,m5a,General,m,32,128.0,16986.5410094,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5a.12xlarge,m5a,General,m,48,192.0,17001.2902464,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5a.16xlarge,m5a,General,m,64,256.0,17008.674469999998,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5a.24xlarge,m5a,General,m,96,384.0,16996.180620000003,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5ad.large,m5ad,General,m,2,8.0,16986.4371,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5ad.xlarge,m5ad,General,m,4,16.0,17004.0398,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5ad.2xlarge,m5ad,General,m,8,32.0,16995.203,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5ad.4xlarge,m5ad,General,m,16,64.0,16995.7808,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5ad.8xlarge,m5ad,General,m,32,128.0,16988.4346,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5ad.12xlarge,m5ad,General,m,48,192.0,16979.7236,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5ad.16xlarge,m5ad,General,m,64,256.0,17007.8717,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5ad.24xlarge,m5ad,General,m,96,384.0,17006.6599,AMD EPYC 7571,AMD EPYC 7571,AMD
+m5d.large,m5d,General,m,2,8.0,23117.8323,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+m5d.xlarge,m5d,General,m,4,16.0,23096.6228,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+m5d.2xlarge,m5d,General,m,8,32.0,23165.0997,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+m5d.4xlarge,m5d,General,m,16,64.0,23129.1055,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+m5d.8xlarge,m5d,General,m,32,128.0,23161.5783,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+m5d.12xlarge,m5d,General,m,48,192.0,25100.5329,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+m5d.16xlarge,m5d,General,m,64,256.0,23189.8066,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5d.24xlarge,m5d,General,m,96,384.0,25107.9953,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+m5dn.large,m5dn,General,m,2,8.0,23905.8751,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5dn.xlarge,m5dn,General,m,4,16.0,23921.1606,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5dn.2xlarge,m5dn,General,m,8,32.0,23188.3017,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5dn.4xlarge,m5dn,General,m,16,64.0,23161.4552,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5dn.8xlarge,m5dn,General,m,32,128.0,23931.8093,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5dn.12xlarge,m5dn,General,m,48,192.0,25043.08,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5dn.16xlarge,m5dn,General,m,64,256.0,23931.1209,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5dn.24xlarge,m5dn,General,m,96,384.0,25053.7489,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5n.large,m5n,General,m,2,8.0,23159.3202476,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5n.xlarge,m5n,General,m,4,16.0,23910.0750202,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5n.2xlarge,m5n,General,m,8,32.0,23497.469361400003,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5n.4xlarge,m5n,General,m,16,64.0,23642.4236992,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5n.8xlarge,m5n,General,m,32,128.0,23170.4868246,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5n.12xlarge,m5n,General,m,48,192.0,25035.3071254,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5n.16xlarge,m5n,General,m,64,256.0,23897.292976000004,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5n.24xlarge,m5n,General,m,96,384.0,25002.528824,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+m5zn.large,m5zn,General,m,2,8.0,33689.556138600004,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel
+m5zn.xlarge,m5zn,General,m,4,16.0,33664.189208799995,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel
+m5zn.2xlarge,m5zn,General,m,8,32.0,33697.7305016,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel
+m5zn.12xlarge,m5zn,General,m,48,192.0,33670.963411,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel
+m5zn.3xlarge,m5zn,General,m,12,48.0,33696.603652000005,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel
+m5zn.6xlarge,m5zn,General,m,24,96.0,33686.5983748,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel
+m6a.large,m6a,General,m,2,8.0,33335.858609400006,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+m6a.xlarge,m6a,General,m,4,16.0,33287.7836416,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+m6a.2xlarge,m6a,General,m,8,32.0,33335.892700200005,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+m6a.4xlarge,m6a,General,m,16,64.0,33325.586020400006,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+m6a.8xlarge,m6a,General,m,32,128.0,33327.5873404,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+m6a.12xlarge,m6a,General,m,48,192.0,33522.85611420001,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+m6a.16xlarge,m6a,General,m,64,256.0,33364.7009806,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+m6a.24xlarge,m6a,General,m,96,384.0,33350.926862800006,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+m6a.32xlarge,m6a,General,m,128,512.0,34260.509088,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+m6a.48xlarge,m6a,General,m,192,768.0,33360.0555802,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+m6g.medium,m6g,General,m,1,4.0,19328.8387944,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6g.large,m6g,General,m,2,8.0,19337.722871600003,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6g.xlarge,m6g,General,m,4,16.0,19339.4457884,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6g.2xlarge,m6g,General,m,8,32.0,19342.736360200004,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6g.4xlarge,m6g,General,m,16,64.0,19335.256272,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6g.8xlarge,m6g,General,m,32,128.0,19339.593148599997,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6g.12xlarge,m6g,General,m,48,192.0,19342.9599576,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6g.16xlarge,m6g,General,m,64,256.0,19336.6024214,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6gd.medium,m6gd,General,m,1,4.0,19334.5127,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6gd.large,m6gd,General,m,2,8.0,19339.6689,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6gd.xlarge,m6gd,General,m,4,16.0,19336.1573,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6gd.2xlarge,m6gd,General,m,8,32.0,19333.3108,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6gd.4xlarge,m6gd,General,m,16,64.0,19333.6849,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6gd.8xlarge,m6gd,General,m,32,128.0,19334.1331,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6gd.12xlarge,m6gd,General,m,48,192.0,19335.2564,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6gd.16xlarge,m6gd,General,m,64,256.0,19339.2938,AWS Graviton2 Processor,Neoverse-N1,AWS
+m6i.large,m6i,General,m,2,8.0,28952.036365,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6i.xlarge,m6i,General,m,4,16.0,28989.554274,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6i.2xlarge,m6i,General,m,8,32.0,28957.3014792,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6i.4xlarge,m6i,General,m,16,64.0,28994.1645516,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6i.8xlarge,m6i,General,m,32,128.0,28994.7648462,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6i.12xlarge,m6i,General,m,48,192.0,28913.2309054,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6i.16xlarge,m6i,General,m,64,256.0,29031.286877600003,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6i.24xlarge,m6i,General,m,96,384.0,29004.035257,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6i.32xlarge,m6i,General,m,128,512.0,28895.912892,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6id.large,m6id,General,m,2,8.0,28969.0605,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6id.xlarge,m6id,General,m,4,16.0,28983.8346,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6id.2xlarge,m6id,General,m,8,32.0,28974.4533,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6id.4xlarge,m6id,General,m,16,64.0,28930.3902,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6id.8xlarge,m6id,General,m,32,128.0,29002.8556,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6id.12xlarge,m6id,General,m,48,192.0,29006.2224,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6id.16xlarge,m6id,General,m,64,256.0,28989.1026,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6id.24xlarge,m6id,General,m,96,384.0,28993.1075,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6id.32xlarge,m6id,General,m,128,512.0,28945.2239,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6idn.large,m6idn,General,m,2,8.0,28982.9884,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6idn.xlarge,m6idn,General,m,4,16.0,28988.2075,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6idn.2xlarge,m6idn,General,m,8,32.0,29019.6649,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6idn.4xlarge,m6idn,General,m,16,64.0,28977.9684,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6idn.8xlarge,m6idn,General,m,32,128.0,29005.3528,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6idn.12xlarge,m6idn,General,m,48,192.0,29012.5965,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6idn.16xlarge,m6idn,General,m,64,256.0,29002.4238,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6idn.24xlarge,m6idn,General,m,96,384.0,29008.9116,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6idn.32xlarge,m6idn,General,m,128,512.0,28998.9751,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6in.large,m6in,General,m,2,8.0,28956.787883,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6in.xlarge,m6in,General,m,4,16.0,28988.743332,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6in.2xlarge,m6in,General,m,8,32.0,28953.057775200003,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6in.4xlarge,m6in,General,m,16,64.0,28968.217807599995,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6in.8xlarge,m6in,General,m,32,128.0,28951.3269578,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6in.12xlarge,m6in,General,m,48,192.0,29039.0516654,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6in.16xlarge,m6in,General,m,64,256.0,29037.869522,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6in.24xlarge,m6in,General,m,96,384.0,29004.426484400006,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m6in.32xlarge,m6in,General,m,128,512.0,29032.808087200003,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+m7a.medium,m7a,General,m,1,4.0,35469.1661588,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+m7a.large,m7a,General,m,2,8.0,35597.8908984,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+m7a.xlarge,m7a,General,m,4,16.0,35593.8236712,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+m7a.2xlarge,m7a,General,m,8,32.0,35573.4485604,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+m7a.4xlarge,m7a,General,m,16,64.0,35630.9504934,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+m7a.8xlarge,m7a,General,m,32,128.0,35620.733535,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+m7a.12xlarge,m7a,General,m,48,192.0,35537.8869594,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+m7a.16xlarge,m7a,General,m,64,256.0,35625.781371000005,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+m7a.24xlarge,m7a,General,m,96,384.0,35566.21822339999,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+m7a.32xlarge,m7a,General,m,128,512.0,35559.1732954,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+m7a.48xlarge,m7a,General,m,192,768.0,35572.6817414,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+m7g.medium,m7g,General,m,1,4.0,24331.5118844,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7g.large,m7g,General,m,2,8.0,24307.2543432,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7g.xlarge,m7g,General,m,4,16.0,24294.260086,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7g.2xlarge,m7g,General,m,8,32.0,24280.9407438,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7g.4xlarge,m7g,General,m,16,64.0,24297.092525599997,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7g.8xlarge,m7g,General,m,32,128.0,24288.616282,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7g.12xlarge,m7g,General,m,48,192.0,24298.0526854,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7g.16xlarge,m7g,General,m,64,256.0,24280.108154,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7gd.medium,m7gd,General,m,1,4.0,24323.827836,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7gd.large,m7gd,General,m,2,8.0,24311.2823744,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7gd.xlarge,m7gd,General,m,4,16.0,24306.6615738,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7gd.2xlarge,m7gd,General,m,8,32.0,24285.6658698,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7gd.4xlarge,m7gd,General,m,16,64.0,24295.913933,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7gd.8xlarge,m7gd,General,m,32,128.0,24279.1627852,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7gd.12xlarge,m7gd,General,m,48,192.0,24278.5899102,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7gd.16xlarge,m7gd,General,m,64,256.0,24291.7769906,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+m7i.large,m7i,General,m,2,8.0,34922.852472399994,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i.xlarge,m7i,General,m,4,16.0,31511.116901,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i.2xlarge,m7i,General,m,8,32.0,34502.0987822,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i.4xlarge,m7i,General,m,16,64.0,34393.8374396,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i.8xlarge,m7i,General,m,32,128.0,34267.728393599995,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i.12xlarge,m7i,General,m,48,192.0,34290.7909594,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i.16xlarge,m7i,General,m,64,256.0,34337.3600746,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i.24xlarge,m7i,General,m,96,384.0,34341.39411760001,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i.48xlarge,m7i,General,m,192,768.0,34387.444791999995,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i-flex.large,m7i-flex,General,m,2,8.0,34817.0428886,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i-flex.xlarge,m7i-flex,General,m,4,16.0,34818.577664000004,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i-flex.2xlarge,m7i-flex,General,m,8,32.0,34847.849836199995,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i-flex.4xlarge,m7i-flex,General,m,16,64.0,34834.042632599994,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m7i-flex.8xlarge,m7i-flex,General,m,32,128.0,34807.886400999996,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+m8g.medium,m8g,General,m,1,4.0,28970.2379818,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+m8g.large,m8g,General,m,2,8.0,28984.5006812,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+m8g.xlarge,m8g,General,m,4,16.0,28985.8445084,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+m8g.2xlarge,m8g,General,m,8,32.0,28981.1396044,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+m8g.4xlarge,m8g,General,m,16,64.0,28943.9671958,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+m8g.8xlarge,m8g,General,m,32,128.0,28983.8282712,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+m8g.12xlarge,m8g,General,m,48,192.0,28982.484259,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+m8g.16xlarge,m8g,General,m,64,256.0,28987.860716200004,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+m8g.24xlarge,m8g,General,m,96,384.0,28983.4933556,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+m8g.48xlarge,m8g,General,m,192,768.0,27921.5754906,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+p2.xlarge,p2,AC,p,4,61.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+p2.8xlarge,p2,AC,p,32,488.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+p2.16xlarge,p2,AC,p,64,732.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+p3.2xlarge,p3,AC,p,8,61.0,23738.917,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+p3.8xlarge,p3,AC,p,32,244.0,23738.917,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+p3.16xlarge,p3,AC,p,64,488.0,23738.917,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+p3dn.24xlarge,p3dn,AC,p,96,768.0,23738.917,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+p4d.24xlarge,p4d,AC,p,96,1152.0,23738.917,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+p5.48xlarge,p5,AC,p,192,2048.0,33539.1601,AMD EPYC 7R13 Processor,AMD EPYC 7R13,AMD
+r3.large,r3,Memory,r,2,15.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+r3.xlarge,r3,Memory,r,4,30.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+r3.2xlarge,r3,Memory,r,8,61.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+r3.4xlarge,r3,Memory,r,16,122.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+r3.8xlarge,r3,Memory,r,32,244.0,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+r4.large,r4,Memory,r,2,15.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+r4.xlarge,r4,Memory,r,4,30.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+r4.2xlarge,r4,Memory,r,8,61.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+r4.4xlarge,r4,Memory,r,16,122.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+r4.8xlarge,r4,Memory,r,32,244.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+r4.16xlarge,r4,Memory,r,64,488.0,,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+r5.large,r5,Memory,r,2,16.0,23139.1854922,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+r5.xlarge,r5,Memory,r,4,32.0,23165.421097,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5.2xlarge,r5,Memory,r,8,64.0,23157.4809938,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+r5.4xlarge,r5,Memory,r,16,128.0,23189.498612000003,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5.8xlarge,r5,Memory,r,32,256.0,23163.177744,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5.12xlarge,r5,Memory,r,48,384.0,25106.0895558,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+r5.16xlarge,r5,Memory,r,64,512.0,23138.969002,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+r5.24xlarge,r5,Memory,r,96,768.0,25101.5488438,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+r5a.large,r5a,Memory,r,2,16.0,16915.113766200004,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5a.xlarge,r5a,Memory,r,4,32.0,16977.586285999998,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5a.2xlarge,r5a,Memory,r,8,64.0,16989.3689954,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5a.4xlarge,r5a,Memory,r,16,128.0,17011.155944399998,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5a.8xlarge,r5a,Memory,r,32,256.0,16999.4311834,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5a.12xlarge,r5a,Memory,r,48,384.0,16971.3349448,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5a.16xlarge,r5a,Memory,r,64,512.0,16752.004235200002,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5a.24xlarge,r5a,Memory,r,96,768.0,16853.4135502,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5ad.large,r5ad,Memory,r,2,16.0,16982.6224,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5ad.xlarge,r5ad,Memory,r,4,32.0,16992.2742,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5ad.2xlarge,r5ad,Memory,r,8,64.0,16996.7251,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5ad.4xlarge,r5ad,Memory,r,16,128.0,16987.5317,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5ad.8xlarge,r5ad,Memory,r,32,256.0,16987.6585,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5ad.12xlarge,r5ad,Memory,r,48,384.0,16959.6965,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5ad.16xlarge,r5ad,Memory,r,64,512.0,16977.9413,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5ad.24xlarge,r5ad,Memory,r,96,768.0,16998.3747,AMD EPYC 7571,AMD EPYC 7571,AMD
+r5b.large,r5b,Memory,r,2,16.0,23929.4200492,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5b.xlarge,r5b,Memory,r,4,32.0,23913.956567000005,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5b.2xlarge,r5b,Memory,r,8,64.0,23936.0482632,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5b.4xlarge,r5b,Memory,r,16,128.0,23146.9630418,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5b.8xlarge,r5b,Memory,r,32,256.0,23938.1172104,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5b.12xlarge,r5b,Memory,r,48,384.0,25059.6538636,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5b.16xlarge,r5b,Memory,r,64,512.0,23920.0184832,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5b.24xlarge,r5b,Memory,r,96,768.0,25021.339616200003,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5d.large,r5d,Memory,r,2,16.0,23160.492,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5d.xlarge,r5d,Memory,r,4,32.0,23151.0518,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+r5d.2xlarge,r5d,Memory,r,8,64.0,23103.9288,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5d.4xlarge,r5d,Memory,r,16,128.0,23125.8915,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+r5d.8xlarge,r5d,Memory,r,32,256.0,23911.1143,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+r5d.12xlarge,r5d,Memory,r,48,384.0,25048.1011,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5d.16xlarge,r5d,Memory,r,64,512.0,23188.1124,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5d.24xlarge,r5d,Memory,r,96,768.0,25114.6541,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+r5dn.large,r5dn,Memory,r,2,16.0,23142.5097,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5dn.xlarge,r5dn,Memory,r,4,32.0,23922.3073,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5dn.2xlarge,r5dn,Memory,r,8,64.0,23184.7619,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5dn.4xlarge,r5dn,Memory,r,16,128.0,23159.7518,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5dn.8xlarge,r5dn,Memory,r,32,256.0,23931.4672,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5dn.12xlarge,r5dn,Memory,r,48,384.0,25063.1634,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5dn.16xlarge,r5dn,Memory,r,64,512.0,23927.9205,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5dn.24xlarge,r5dn,Memory,r,96,768.0,25037.1989,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5n.large,r5n,Memory,r,2,16.0,23913.272210199997,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5n.xlarge,r5n,Memory,r,4,32.0,23885.442948,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5n.2xlarge,r5n,Memory,r,8,64.0,23924.942443400003,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5n.4xlarge,r5n,Memory,r,16,128.0,23479.3262332,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5n.8xlarge,r5n,Memory,r,32,256.0,23150.0173536,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5n.12xlarge,r5n,Memory,r,48,384.0,25022.027633,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5n.16xlarge,r5n,Memory,r,64,512.0,23177.227494,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r5n.24xlarge,r5n,Memory,r,96,768.0,25023.693193000003,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+r6a.large,r6a,Memory,r,2,16.0,33359.37735720001,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+r6a.xlarge,r6a,Memory,r,4,32.0,33331.1447322,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+r6a.2xlarge,r6a,Memory,r,8,64.0,33369.403579,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+r6a.4xlarge,r6a,Memory,r,16,128.0,32801.894509599995,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+r6a.8xlarge,r6a,Memory,r,32,256.0,33314.439718,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+r6a.12xlarge,r6a,Memory,r,48,384.0,34513.723203199996,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+r6a.16xlarge,r6a,Memory,r,64,512.0,34425.4726516,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+r6a.24xlarge,r6a,Memory,r,96,768.0,32987.9077922,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+r6a.32xlarge,r6a,Memory,r,128,1024.0,34452.409133199995,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+r6a.48xlarge,r6a,Memory,r,192,1536.0,33346.92279299999,AMD EPYC 7R13 Processor,AMD EPYC 7R13 Processor,AMD
+r6g.medium,r6g,Memory,r,1,8.0,19335.10555,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6g.large,r6g,Memory,r,2,16.0,19335.8529184,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6g.xlarge,r6g,Memory,r,4,32.0,19340.191838600003,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6g.2xlarge,r6g,Memory,r,8,64.0,19342.061158,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6g.4xlarge,r6g,Memory,r,16,128.0,19333.535245,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6g.8xlarge,r6g,Memory,r,32,256.0,19333.7593208,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6g.12xlarge,r6g,Memory,r,48,384.0,19342.1370646,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6g.16xlarge,r6g,Memory,r,64,512.0,19339.070679400003,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6gd.medium,r6gd,Memory,r,1,8.0,19334.5075,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6gd.large,r6gd,Memory,r,2,16.0,19337.4989,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6gd.xlarge,r6gd,Memory,r,4,32.0,19341.0886,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6gd.2xlarge,r6gd,Memory,r,8,64.0,19337.049,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6gd.4xlarge,r6gd,Memory,r,16,128.0,19333.6092,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6gd.8xlarge,r6gd,Memory,r,32,256.0,19337.0509,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6gd.12xlarge,r6gd,Memory,r,48,384.0,19340.4905,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6gd.16xlarge,r6gd,Memory,r,64,512.0,19337.2003,AWS Graviton2 Processor,Neoverse-N1,AWS
+r6i.large,r6i,Memory,r,2,16.0,28978.137696800004,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6i.xlarge,r6i,Memory,r,4,32.0,28951.9039336,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6i.2xlarge,r6i,Memory,r,8,64.0,29005.1851824,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6i.4xlarge,r6i,Memory,r,16,128.0,28946.0133376,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6i.8xlarge,r6i,Memory,r,32,256.0,29027.5774204,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6i.12xlarge,r6i,Memory,r,48,384.0,28960.7544498,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6i.16xlarge,r6i,Memory,r,64,512.0,29000.555173,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6i.24xlarge,r6i,Memory,r,96,768.0,28989.500661799997,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6i.32xlarge,r6i,Memory,r,128,1024.0,28993.6617708,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6id.large,r6id,Memory,r,2,16.0,28967.8459,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6id.xlarge,r6id,Memory,r,4,32.0,28994.2608,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6id.2xlarge,r6id,Memory,r,8,64.0,28977.79,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6id.4xlarge,r6id,Memory,r,16,128.0,28943.7916,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6id.8xlarge,r6id,Memory,r,32,256.0,29005.6967,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6id.12xlarge,r6id,Memory,r,48,384.0,28918.4386,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6id.16xlarge,r6id,Memory,r,64,512.0,29006.2364,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6id.24xlarge,r6id,Memory,r,96,768.0,29012.6147,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6id.32xlarge,r6id,Memory,r,128,1024.0,29031.959,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6idn.large,r6idn,Memory,r,2,16.0,28922.4831,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6idn.xlarge,r6idn,Memory,r,4,32.0,29017.3107,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6idn.2xlarge,r6idn,Memory,r,8,64.0,28964.403,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6idn.4xlarge,r6idn,Memory,r,16,128.0,29004.7108,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6idn.8xlarge,r6idn,Memory,r,32,256.0,28956.5551,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6idn.12xlarge,r6idn,Memory,r,48,384.0,29014.8139,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6idn.16xlarge,r6idn,Memory,r,64,512.0,29020.5131,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6idn.24xlarge,r6idn,Memory,r,96,768.0,28971.0329,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6idn.32xlarge,r6idn,Memory,r,128,1024.0,28995.1245,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6in.large,r6in,Memory,r,2,16.0,28982.6698086,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6in.xlarge,r6in,Memory,r,4,32.0,29002.831699,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6in.2xlarge,r6in,Memory,r,8,64.0,29024.5758708,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6in.4xlarge,r6in,Memory,r,16,128.0,28981.0300328,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6in.8xlarge,r6in,Memory,r,32,256.0,28979.4757428,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6in.12xlarge,r6in,Memory,r,48,384.0,28999.8199294,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6in.16xlarge,r6in,Memory,r,64,512.0,29030.456523,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6in.24xlarge,r6in,Memory,r,96,768.0,29007.549157400004,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r6in.32xlarge,r6in,Memory,r,128,1024.0,28971.875437800005,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+r7a.medium,r7a,Memory,r,1,8.0,35571.0988776,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+r7a.large,r7a,Memory,r,2,16.0,35626.7616784,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+r7a.xlarge,r7a,Memory,r,4,32.0,35510.57794519999,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+r7a.2xlarge,r7a,Memory,r,8,64.0,35584.9629768,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+r7a.4xlarge,r7a,Memory,r,16,128.0,35601.1796332,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+r7a.8xlarge,r7a,Memory,r,32,256.0,35566.829638,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+r7a.12xlarge,r7a,Memory,r,48,384.0,35594.098298,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+r7a.16xlarge,r7a,Memory,r,64,512.0,35552.02395340001,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+r7a.24xlarge,r7a,Memory,r,96,768.0,35605.2477766,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+r7a.32xlarge,r7a,Memory,r,128,1024.0,35624.4450724,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+r7a.48xlarge,r7a,Memory,r,192,1536.0,35643.6463564,AMD EPYC 9R14,AMD EPYC 9R14,AMD
+r7g.medium,r7g,Memory,r,1,8.0,24085.4820246,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7g.large,r7g,Memory,r,2,16.0,24079.6750146,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7g.xlarge,r7g,Memory,r,4,32.0,24078.167410400005,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7g.2xlarge,r7g,Memory,r,8,64.0,24077.3574614,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7g.4xlarge,r7g,Memory,r,16,128.0,24077.0095074,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7g.8xlarge,r7g,Memory,r,32,256.0,24083.3886114,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7g.12xlarge,r7g,Memory,r,48,384.0,24073.0669812,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7g.16xlarge,r7g,Memory,r,64,512.0,24069.1302852,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7gd.medium,r7gd,Memory,r,1,8.0,24088.9596,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7gd.large,r7gd,Memory,r,2,16.0,24077.081,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7gd.xlarge,r7gd,Memory,r,4,32.0,24077.081,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7gd.2xlarge,r7gd,Memory,r,8,64.0,24077.081,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7gd.4xlarge,r7gd,Memory,r,16,128.0,24073.5307,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7gd.8xlarge,r7gd,Memory,r,32,256.0,24077.081,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7gd.12xlarge,r7gd,Memory,r,48,384.0,24079.7958,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7gd.16xlarge,r7gd,Memory,r,64,512.0,24077.081,AWS Graviton3 Processor,AWS Graviton3 Processor,AWS
+r7i.large,r7i,Memory,r,2,16.0,34697.75583940001,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7i.xlarge,r7i,Memory,r,4,32.0,34301.1909938,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7i.2xlarge,r7i,Memory,r,8,64.0,31225.026048,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7i.4xlarge,r7i,Memory,r,16,128.0,34601.8810342,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7i.8xlarge,r7i,Memory,r,32,256.0,34785.947861,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7i.12xlarge,r7i,Memory,r,48,384.0,34303.2326352,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7i.16xlarge,r7i,Memory,r,64,512.0,34294.7839738,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7i.24xlarge,r7i,Memory,r,96,768.0,34375.390687,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7i.48xlarge,r7i,Memory,r,192,1536.0,34337.6371492,Intel(R) Xeon(R) Platinum 8488C,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7iz.large,r7iz,Memory,r,2,16.0,35805.645069000006,Intel(R) Xeon(R) Gold 6455B,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7iz.xlarge,r7iz,Memory,r,4,32.0,35764.321865599995,Intel(R) Xeon(R) Gold 6455B,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7iz.2xlarge,r7iz,Memory,r,8,64.0,35854.9903118,Intel(R) Xeon(R) Gold 6455B,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7iz.4xlarge,r7iz,Memory,r,16,128.0,35862.87535839999,Intel(R) Xeon(R) Gold 6455B,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7iz.8xlarge,r7iz,Memory,r,32,256.0,35866.3119806,Intel(R) Xeon(R) Gold 6455B,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7iz.12xlarge,r7iz,Memory,r,48,384.0,35860.09764139999,Intel(R) Xeon(R) Gold 6455B,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7iz.16xlarge,r7iz,Memory,r,64,512.0,35871.1167232,Intel(R) Xeon(R) Gold 6455B,Intel(R) Xeon(R) Platinum 8488C,Intel
+r7iz.32xlarge,r7iz,Memory,r,128,1024.0,35912.8514916,Intel(R) Xeon(R) Gold 6455B,Intel(R) Xeon(R) Platinum 8488C,Intel
+r8g.medium,r8g,Memory,r,1,8.0,28979.4784516,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+r8g.large,r8g,Memory,r,2,16.0,28983.3231188,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+r8g.xlarge,r8g,Memory,r,4,32.0,28989.036983799997,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+r8g.2xlarge,r8g,Memory,r,8,64.0,28989.3728626,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+r8g.4xlarge,r8g,Memory,r,16,128.0,28981.1499764,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+r8g.8xlarge,r8g,Memory,r,32,256.0,28952.401559,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+r8g.12xlarge,r8g,Memory,r,48,384.0,28983.8286316,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+r8g.16xlarge,r8g,Memory,r,64,512.0,28983.8286316,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+r8g.24xlarge,r8g,Memory,r,96,768.0,28987.1890368,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+r8g.48xlarge,r8g,Memory,r,192,1536.0,28983.8286316,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+t1.micro,t1,General,t,1,0.5,,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel(R) Xeon(R) CPU E5-2670 v2 @ 2.50GHz,Intel
+t2.micro,t2,General,t,1,1.0,18680.147313200003,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel
+t2.small,t2,General,t,1,2.0,18456.5978276,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel
+t2.medium,t2,General,t,1,4.0,18677.2431552,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz,Intel
+t2.large,t2,General,t,2,8.0,18595.943173,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+t2.xlarge,t2,General,t,4,16.0,18656.670523,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+t2.2xlarge,t2,General,t,8,32.0,18582.0922232,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz,Intel
+t3.nano,t3,General,t,1,0.5,19838.448677,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+t3.micro,t3,General,t,1,1.0,18372.679650600003,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+t3.small,t3,General,t,1,2.0,17236.0433724,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+t3.medium,t3,General,t,1,4.0,16266.4390122,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+t3.large,t3,General,t,2,8.0,18001.996257799998,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+t3.xlarge,t3,General,t,4,16.0,17927.5861616,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz,Intel
+t3.2xlarge,t3,General,t,8,32.0,19030.8208542,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+t3a.nano,t3a,General,t,1,0.5,16978.0766,AMD EPYC 7571,AMD EPYC 7571,AMD
+t3a.micro,t3a,General,t,1,1.0,16978.0766,AMD EPYC 7571,AMD EPYC 7571,AMD
+t3a.small,t3a,General,t,1,2.0,16978.0766,AMD EPYC 7571,AMD EPYC 7571,AMD
+t3a.medium,t3a,General,t,1,4.0,16978.0766,AMD EPYC 7571,AMD EPYC 7571,AMD
+t3a.large,t3a,General,t,2,8.0,16978.0766,AMD EPYC 7571,AMD EPYC 7571,AMD
+t3a.xlarge,t3a,General,t,4,16.0,16978.0766,AMD EPYC 7571,AMD EPYC 7571,AMD
+t3a.2xlarge,t3a,General,t,8,32.0,16978.0766,AMD EPYC 7571,AMD EPYC 7571,AMD
+t4g.nano,t4g,General,t,1,0.5,18328.2761066,AWS Graviton2 Processor,Neoverse-N1,AWS
+t4g.micro,t4g,General,t,1,1.0,18357.8917948,AWS Graviton2 Processor,Neoverse-N1,AWS
+t4g.small,t4g,General,t,1,2.0,18403.36735,AWS Graviton2 Processor,Neoverse-N1,AWS
+t4g.medium,t4g,General,t,1,4.0,18380.1536048,AWS Graviton2 Processor,Neoverse-N1,AWS
+t4g.large,t4g,General,t,2,8.0,18018.7907948,AWS Graviton2 Processor,Neoverse-N1,AWS
+t4g.xlarge,t4g,General,t,4,16.0,17963.9244202,AWS Graviton2 Processor,Neoverse-N1,AWS
+t4g.2xlarge,t4g,General,t,8,32.0,18300.0613522,AWS Graviton2 Processor,Neoverse-N1,AWS
+trn1.2xlarge,trn1,AC,trn,8,32.0,28985.5594,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+trn1.32xlarge,trn1,AC,trn,128,512.0,28985.5594,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+trn1n.32xlarge,trn1n,AC,trn,128,512.0,28985.5594,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+vt1.24xlarge,vt1,AC,vt,96,192.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+vt1.3xlarge,vt1,AC,vt,12,24.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+vt1.6xlarge,vt1,AC,vt,24,48.0,23883.6025,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz,Intel
+x1.16xlarge,x1,Memory,x,64,976.0,19527.2736,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel
+x1.32xlarge,x1,Memory,x,128,1952.0,19637.2612,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel
+x1e.xlarge,x1e,Memory,x,4,122.0,19229.0832,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel
+x1e.2xlarge,x1e,Memory,x,8,244.0,19238.4694,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel
+x1e.4xlarge,x1e,Memory,x,16,488.0,19204.477,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel
+x1e.8xlarge,x1e,Memory,x,32,976.0,19390.351,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel
+x1e.16xlarge,x1e,Memory,x,64,1952.0,19744.483,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel
+x1e.32xlarge,x1e,Memory,x,128,3904.0,19742.1451,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel(R) Xeon(R) CPU E7-8880 v3 @ 2.30GHz,Intel
+x2gd.medium,x2gd,Memory,x,1,16.0,19348.4254,AWS Graviton2 Processor,Neoverse-N1,AWS
+x2gd.large,x2gd,Memory,x,2,32.0,19349.9985,AWS Graviton2 Processor,Neoverse-N1,AWS
+x2gd.xlarge,x2gd,Memory,x,4,64.0,19340.1922,AWS Graviton2 Processor,Neoverse-N1,AWS
+x2gd.2xlarge,x2gd,Memory,x,8,128.0,19341.913,AWS Graviton2 Processor,Neoverse-N1,AWS
+x2gd.4xlarge,x2gd,Memory,x,16,256.0,19334.6563,AWS Graviton2 Processor,Neoverse-N1,AWS
+x2gd.8xlarge,x2gd,Memory,x,32,512.0,19346.4059,AWS Graviton2 Processor,Neoverse-N1,AWS
+x2gd.12xlarge,x2gd,Memory,x,48,768.0,19336.603,AWS Graviton2 Processor,Neoverse-N1,AWS
+x2gd.16xlarge,x2gd,Memory,x,64,1024.0,19343.2582,AWS Graviton2 Processor,Neoverse-N1,AWS
+x2idn.16xlarge,x2idn,Memory,x,64,1024.0,29019.3273,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+x2idn.24xlarge,x2idn,Memory,x,96,1536.0,28954.3734,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+x2idn.32xlarge,x2idn,Memory,x,128,2048.0,28978.3536,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+x2iedn.xlarge,x2iedn,Memory,x,4,128.0,29008.0458,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+x2iedn.2xlarge,x2iedn,Memory,x,8,256.0,28991.5821,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+x2iedn.4xlarge,x2iedn,Memory,x,16,512.0,29005.7166,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+x2iedn.8xlarge,x2iedn,Memory,x,32,1024.0,28998.0027,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+x2iedn.16xlarge,x2iedn,Memory,x,64,2048.0,28890.2396,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+x2iedn.24xlarge,x2iedn,Memory,x,96,3072.0,29011.2577,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+x2iedn.32xlarge,x2iedn,Memory,x,128,4096.0,28887.2738,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz,Intel
+x2iezn.2xlarge,x2iezn,Memory,x,8,256.0,33684.5898,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel
+x2iezn.4xlarge,x2iezn,Memory,x,16,512.0,33627.016,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel
+x2iezn.8xlarge,x2iezn,Memory,x,32,1024.0,33695.2893,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel
+x2iezn.12xlarge,x2iezn,Memory,x,48,1536.0,33253.1041,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel
+x2iezn.6xlarge,x2iezn,Memory,x,24,768.0,33705.6719,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz,Intel
+x8g.medium,x8g,Memory,x,1,16.0,28966.548239000003,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+x8g.large,x8g,Memory,x,2,32.0,28984.836102399997,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+x8g.xlarge,x8g,Memory,x,4,64.0,28993.4080554,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+x8g.2xlarge,x8g,Memory,x,8,128.0,28965.5865596,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+x8g.4xlarge,x8g,Memory,x,16,256.0,28948.8391302,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+x8g.8xlarge,x8g,Memory,x,32,512.0,28985.8438458,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+x8g.12xlarge,x8g,Memory,x,48,768.0,28977.782499400004,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+x8g.16xlarge,x8g,Memory,x,64,1024.0,28990.8860706,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+x8g.24xlarge,x8g,Memory,x,96,1536.0,28982.3159886,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+x8g.48xlarge,x8g,Memory,x,192,3072.0,27930.465304399997,AWS Graviton4 Processor,AWS Graviton4 Processor,AWS
+z1d.large,z1d,Memory,z,2,16.0,29910.9303,Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz,Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz,Intel
+z1d.xlarge,z1d,Memory,z,4,32.0,29910.593,Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz,Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz,Intel
+z1d.2xlarge,z1d,Memory,z,8,64.0,29932.6018,Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz,Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz,Intel
+z1d.12xlarge,z1d,Memory,z,48,384.0,29928.1188,Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz,Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz,Intel
+z1d.3xlarge,z1d,Memory,z,12,96.0,29890.5849,Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz,Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz,Intel
+z1d.6xlarge,z1d,Memory,z,24,192.0,29941.0209,Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz,Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz,Intel

@@ -1,3 +1,4 @@
+import uuid
 import pandas as pd
 from pulp import *
 import numpy as np
@@ -7,11 +8,7 @@ import json
 import pandas as pd
 from datetime import datetime
 import boto3
-
-
-azdict = {'use2-az1': 'us-east-2a', 'use2-az2': 'us-east-2b', 'use2-az3': 'us-east-2c', 'aps1-az1': 'ap-south-1a', 'aps1-az3': 'ap-south-1b', 'aps1-az2': 'ap-south-1c', 'usw2-az1': 'us-west-2a', 'usw2-az2': 'us-west-2b', 'usw2-az3': 'us-west-2c', 'usw2-az4': 'us-west-2d', 'usw2-wl1-den-wlz1': 'us-west-2-wl1-den-wlz-1', 'usw2-wl1-las-wlz1': 'us-west-2-wl1-las-wlz-1', 'usw2-wl1-phx-wlz1': 'us-west-2-wl1-phx-wlz-1', 'usw2-wl1-sea-wlz1': 'us-west-2-wl1-sea-wlz-1', 'usw2-wl1-sfo-wlz1': 'us-west-2-wl1-sfo-wlz-1', 'apne3-az3': 'ap-northeast-3a', 'apne3-az1': 'ap-northeast-3b', 'apne3-az2': 'ap-northeast-3c', 'apse1-az1': 'ap-southeast-1a', 'apse1-az2': 'ap-southeast-1b', 'apse1-az3': 'ap-southeast-1c', 'apne2-az1': 'ap-northeast-2a', 'apne2-az2': 'ap-northeast-2b', 'apne2-az3': 'ap-northeast-2c', 'apne2-az4': 'ap-northeast-2d', 'apne2-wl1-cjj-wlz1': 'ap-northeast-2-wl1-cjj-wlz-1', 'cac1-az1': 'ca-central-1a', 'cac1-az2': 'ca-central-1b', 'cac1-az4': 'ca-central-1d', 'euc1-az2': 'eu-central-1a', 'euc1-az3': 'eu-central-1b', 'euc1-az1': 'eu-central-1c', 'euw2-az2': 'eu-west-2a', 'euw2-az3': 'eu-west-2b', 'euw2-az1': 'eu-west-2c', 'euw3-az1': 'eu-west-3a', 'euw3-az2': 'eu-west-3b', 'euw3-az3': 'eu-west-3c', 'eun1-az1': 'eu-north-1a', 'eun1-az2': 'eu-north-1b', 'eun1-az3': 'eu-north-1c', 'sae1-az1': 'sa-east-1a', 'sae1-az2': 'sa-east-1b', 'sae1-az3': 'sa-east-1c', 'apne1-az4': 'ap-northeast-1a', 'apne1-az1': 'ap-northeast-1c', 'apne1-az2': 'ap-northeast-1d', 'apse2-az3': 'ap-southeast-2a', 'apse2-az1': 'ap-southeast-2b', 'apse2-az2': 'ap-southeast-2c', 'use1-az4': 'us-east-1a', 'use1-az6': 'us-east-1b', 'use1-az1': 'us-east-1c', 'use1-az2': 'us-east-1d', 'use1-az3': 'us-east-1e', 'use1-az5': 'us-east-1f', 'usw1-az3': 'us-west-1b', 'usw1-az1': 'us-west-1c', 'euw1-az3': 'eu-west-1a', 'euw1-az1': 'eu-west-1b', 'euw1-az2': 'eu-west-1c'}
-
-CACHE_FILE = 'az_mapping.json'
+import os
 
 def fetch_and_cache_az_mapping(region='us-east-1'):
     ec2 = boto3.client('ec2', region_name=region)
@@ -30,7 +27,7 @@ def load_az_mapping(region='us-east-1'):
 
 def get_aws_spot_prices(target_region='us-east-1', allow_arm=True):
     # 스팟 인스턴스 가격 데이터 URL
-    spot_price_url = "https://spotlake.s3.us-west-2.amazonaws.com/latest_data/latest_aws.json"
+    spot_price_url = "https://d26bk4799jlxhe.cloudfront.net/latest_data/latest_aws.json"
 
     try:
         response = requests.get(spot_price_url)
@@ -137,7 +134,7 @@ def load_and_preprocess(file_path, pod_cpu, pod_mem):
     df = pd.read_csv(file_path)
     df['T3'] = pd.to_numeric(df['T3'], errors='coerce')
     df.dropna(subset=['T3'], inplace=True)
-    df['Max_Instance'] = (df['T3'] * 0.1).astype(int)
+    df['Max_Instance'] = (df['T3'] * 0.4).astype(int)
     df['PodAssignable'] = df.apply(
         lambda row: min(row['vCPU'] // pod_cpu, row['Memory'] // pod_mem), axis=1)
     df = df[df['PodAssignable'] > 0].reset_index(drop=True)
@@ -313,6 +310,7 @@ def visualize_alpha_solutions(alpha_solutions, fixed_alpha_points=None, optimal_
         ax2.scatter(alphas, pod_counts, c='green', s=50)
         ax2.set_ylabel('Total Pod Count', color='g')
         ax2.tick_params(axis='y', labelcolor='g')
+        ax2.set_ylim(pod_count, pod_count*2)  # Cost y축 범위 설정
         
         # 비용 그래프 (오른쪽 y축)
         ax3 = ax1.twinx()
@@ -372,7 +370,7 @@ def visualize_alpha_solutions(alpha_solutions, fixed_alpha_points=None, optimal_
     return optimal_point
 
 # === 8. Golden Section Nodepool Generator ===
-def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.0, right=1.0, tolerance=0.01, max_iterations=20, verbose=False, pod_over_limit=0):
+def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.2, right=0.8, tolerance=0.01, max_iterations=20, verbose=False, pod_over_limit=0.00):
     """
     황금 분할 탐색을 사용하여 최적의 alpha 값을 찾고, 해당 alpha 값에 대한 노드풀 구성을 반환합니다.
     
@@ -510,11 +508,15 @@ def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.0, right=1.
     best_result = None
     best_performance = -float('inf')
     
+    # 새로운 성능 지표를 사용한 코드
     for result in all_results:
         actual_pods = sum(r['TotalPodsOnType'] for r in result['results'])
-        if actual_pods <= max_allowed_pods and result['performance'] > best_performance:
+        # 새로운 성능 지표: 성능 / (비용 * 실제 파드 수)
+        performance_metric = result['performance'] / (result['cost'] * actual_pods)
+        
+        if performance_metric > best_performance:
             best_result = result
-            best_performance = result['performance']
+            best_performance = performance_metric
     
     if best_result:
         best_alpha = best_result['alpha']
@@ -574,10 +576,15 @@ def getGoldenNodepool(file_path, pod_count, pod_cpu, pod_mem, left=0.0, right=1.
 
 # === 9. Main Runner ===
 if __name__ == '__main__':
-    FILE_PATH = get_aws_spot_prices(target_region='us-east-1', allow_arm=True)
-    POD_COUNT = 10
-    POD_CPU = 2
-    POD_MEM = 8
+    import json
+    FILE_PATH = get_aws_spot_prices(target_region='us-east-1', allow_arm=False)
+    POD_COUNT = 73
+    POD_CPU = 1
+    POD_MEM = 2
     
-    # getGoldenNodepool 함수 테스트 (verbose=True로 설정하여 상세 출력)
+    # getGoldenNodepool 함수 테스트 (verbose=True로 설정하여 상세 출력) 
+    RANDOM_JOB_PATH = f"results/manual/{str(uuid.uuid4())}"
+    os.makedirs(f"{RANDOM_JOB_PATH}")
     result = getGoldenNodepool(FILE_PATH, POD_COUNT, POD_CPU, POD_MEM, verbose=True)
+    with open(f"{RANDOM_JOB_PATH}/golden_pool.json", 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False, indent=4)
