@@ -1,0 +1,43 @@
+name: "CodeQL"
+on:
+  push:
+    branches:
+      - 'main'
+      - 'release-v*'
+  pull_request:
+  schedule:
+    - cron: '0 12 * * *'
+permissions:
+  contents: read
+jobs:
+  analyze-go:
+    name: Analyze Go
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read # github/codeql-action/init@v2
+      security-events: write # github/codeql-action/init@v2
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      - uses: ./.github/actions/install-deps
+      - run: make vulncheck
+      - uses: github/codeql-action/init@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v4.31.4
+        with:
+          languages: go
+      - uses: github/codeql-action/autobuild@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v4.31.4
+      - uses: github/codeql-action/analyze@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v4.31.4
+  analyze-github-actions:
+    name: Analyze Github Actions
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read # github/codeql-action/init@v2
+      security-events: write # github/codeql-action/init@v2
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      - uses: github/codeql-action/init@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v4.31.4
+        with:
+          languages: actions
+          config: |
+            paths:
+              - '.github/workflows'
+              - '.github/actions'
+      - uses: github/codeql-action/analyze@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v4.31.4
