@@ -10,14 +10,15 @@ PROFILE="default"
 echo "Logging in to ECR..."
 aws ecr get-login-password --region $REGION --profile $PROFILE | docker login --username AWS --password-stdin $ECR_REPO 
 
-# Build the image
-echo "Building Docker image..."
+# Create and use a builder instance that supports multi-arch
+if ! docker buildx inspect karpenter-builder > /dev/null 2>&1; then
+    docker buildx create --name karpenter-builder --use
+fi
+
+# Build and push the image
+echo "Building and pushing multi-arch Docker image..."
 # Build the image from the parent directory to include karpenter-core
 cd $(dirname "$0")/..
-docker build -f karpenter-fork/Dockerfile -t $ECR_REPO:latest .
-
-# Push the image
-echo "Pushing image to ECR..."
-docker push $ECR_REPO:latest
+docker buildx build --platform linux/amd64,linux/arm64 -f karpenter-fork/Dockerfile -t $ECR_REPO:latest --push .
 
 echo "Done! Image pushed to $ECR_REPO:latest"
