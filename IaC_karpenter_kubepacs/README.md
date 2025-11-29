@@ -85,10 +85,10 @@ flowchart TD
     subgraph Vanilla["Vanilla Karpenter (기존)"]
         V_Pod[Pod Pending] --> V_Sched[Scheduler]
         V_Sched --> V_List[AWS Price List]
-        V_List --> V_Cand[여러 후보군 추출\n(c5, m5, r5...)]
+        V_List --> V_Cand["여러 후보군 추출<br/>(c5, m5, r5...)"]
         V_Cand --> V_AWS[AWS CreateFleet API]
-        V_AWS -- "AWS가 결정\n(재고/가격 중심)" --> V_Node[노드 생성]
-        V_Node -.-> V_Result[성능 고려 부족\n비효율적일 수 있음]
+        V_AWS -- "AWS가 결정<br/>(재고/가격 중심)" --> V_Node[노드 생성]
+        V_Node -.-> V_Result["성능 고려 부족<br/>비효율적일 수 있음"]
         style V_Result stroke:#ff9999,stroke-width:2px
     end
 
@@ -98,13 +98,13 @@ flowchart TD
         
         subgraph Logic["최적화 로직"]
             K_Py -- "실시간 가격" --> K_Algo
-            Data[CoreMark\n성능 데이터] --> K_Algo{Linear\nProgramming}
+            Data["CoreMark<br/>성능 데이터"] --> K_Algo{"Linear<br/>Programming"}
         end
         
-        K_Algo --> K_Opt[최적 타입 확정\n(예: c5.2xlarge)]
-        K_Opt --> K_AWS[AWS CreateFleet API\n(콕 집어서 요청)]
-        K_AWS -- "우리가 결정\n(성능+비용 최적)" --> K_Node[노드 생성]
-        K_Node -.-> K_Result[비용 대비\n최고 성능 보장]
+        K_Algo --> K_Opt["최적 타입 확정<br/>(예: c5.2xlarge)"]
+        K_Opt --> K_AWS["AWS CreateFleet API<br/>(콕 집어서 요청)"]
+        K_AWS -- "우리가 결정<br/>(성능+비용 최적)" --> K_Node[노드 생성]
+        K_Node -.-> K_Result["비용 대비<br/>최고 성능 보장"]
         style K_Result stroke:#99ff99,stroke-width:2px
     end
 ```
