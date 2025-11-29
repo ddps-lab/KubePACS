@@ -43,8 +43,9 @@ resource "helm_release" "karpenter" {
     replicas: 1
     controller:
       image:
-        repository: 741926482963.dkr.ecr.ap-northeast-1.amazonaws.com/karpenter-custom
+        repository: ${var.ecr_repository_url}
         tag: latest
+      imagePullPolicy: Always
     EOT
   ]
 

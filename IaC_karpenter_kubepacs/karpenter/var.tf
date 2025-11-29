@@ -3,3 +3,4 @@ variable "oidc_provider_arn" {}
 variable "prefix" {}
 variable "cluster_endpoint" {}
 variable "node_group_id" {}
+variable "ecr_repository_url" {}

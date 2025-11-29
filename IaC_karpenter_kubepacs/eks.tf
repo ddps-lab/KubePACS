@@ -3,7 +3,7 @@ module "eks" {
   version = "20.37.2"
 
   cluster_name    = "${var.prefix}-k8s-cluster"
-  cluster_version = "1.32"
+  cluster_version = "1.33"
 
   cluster_endpoint_public_access = true
 
@@ -23,7 +23,7 @@ module "eks" {
   }
 
   eks_managed_node_groups = {
-    kubecaps_addon_nodes = {
+    kubepacs_addon_nodes = {
       vpc_security_group_ids = [module.eks.node_security_group_id, aws_security_group.worker_node_sg.id]
       ami_type               = "BOTTLEROCKET_x86_64"
       desired_size           = 1

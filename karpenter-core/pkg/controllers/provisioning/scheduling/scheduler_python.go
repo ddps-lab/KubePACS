@@ -49,7 +49,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 
 	for _, nct := range s.nodeClaimTemplates {
 		// Only consider templates with the kubepacs strategy
-		if val, ok := nct.Annotations["kubecaps.io/strategy"]; !ok || val != "kubepacs" {
+		if val, ok := nct.Annotations["kubepacs.io/strategy"]; !ok || val != "kubepacs" {
 			continue
 		}
 		for _, it := range nct.InstanceTypeOptions {
@@ -74,7 +74,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 	}
 
 	// 3. Call Python Script
-	cmd := exec.Command("python3", "/usr/local/bin/kubecaps_cli.py",
+	cmd := exec.Command("python3", "/usr/local/bin/kubepacs_cli.py",
 		"--pod-count", fmt.Sprintf("%d", len(pods)),
 		"--pod-cpu", fmt.Sprintf("%f", avgCPU),
 		"--pod-mem", fmt.Sprintf("%f", avgMem),
@@ -110,7 +110,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 			// Find template that supports this instance type
 			for _, nct := range s.nodeClaimTemplates {
 				// Only consider templates with the kubepacs strategy
-				if val, ok := nct.Annotations["kubecaps.io/strategy"]; !ok || val != "kubepacs" {
+				if val, ok := nct.Annotations["kubepacs.io/strategy"]; !ok || val != "kubepacs" {
 					continue
 				}
 
