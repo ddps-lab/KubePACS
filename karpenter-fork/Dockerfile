@@ -1,4 +1,4 @@
-FROM golang:1.25 as builder
+FROM golang:1.25 AS builder
 
 WORKDIR /src
 
@@ -30,7 +30,7 @@ COPY --from=builder /src/karpenter-fork/controller .
 # Note: We are copying from the build context (host), not the builder stage, 
 # because we want to ensure we get the files even if they weren't used in the go build.
 # But since we are running from root context, we can copy directly.
-COPY karpenter-core/pkg/controllers/provisioning/scheduling/kubecaps_cli.py /usr/local/bin/kubecaps_cli.py
+COPY karpenter-core/pkg/controllers/provisioning/scheduling/kubepacs_cli.py /usr/local/bin/kubepacs_cli.py
 COPY karpenter-core/pkg/controllers/provisioning/scheduling/aws_coremark_singlecore.csv /usr/local/bin/aws_coremark_singlecore.csv
 
 ENTRYPOINT ["/controller"]
