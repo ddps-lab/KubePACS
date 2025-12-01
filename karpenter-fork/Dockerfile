@@ -3,6 +3,8 @@ FROM golang:1.25 AS builder
 WORKDIR /src
 
 # Copy the entire project to handle relative paths in go.mod
+ARG CACHEBUST=1
+RUN echo "Cache bust: $CACHEBUST"
 COPY karpenter-core/ karpenter-core/
 COPY karpenter-fork/ karpenter-fork/
 
@@ -12,11 +14,15 @@ WORKDIR /src/karpenter-fork
 # This will now work because ../karpenter-core exists
 RUN go mod download
 
+# DEBUG: Check file content
+RUN cat ../karpenter-core/pkg/controllers/provisioning/scheduling/scheduler_python.go
+
+
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o controller cmd/controller/main.go
 
 # Use a Python base image
-FROM python:3.13-slim
+FROM --platform=linux/amd64 python:3.11-slim
 
 WORKDIR /
 

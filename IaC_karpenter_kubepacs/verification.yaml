@@ -4,7 +4,7 @@ metadata:
   name: default
 spec:
   amiFamily: AL2023
-  role: kubepacs-t1-karpenter-node-role-2025112712115464220000001c
+  role: kubepacs-t1-karpenter-node-role-2025112815291154130000001d
   subnetSelectorTerms:
     - tags:
         karpenter.sh/discovery: kubepacs-t1-k8s-cluster
@@ -18,10 +18,12 @@ apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
-  annotations:
-    kubepacs.io/strategy: kubepacs
+  name: default
 spec:
   template:
+    metadata:
+      annotations:
+        kubepacs.io/strategy: kubepacs
     spec:
       requirements:
         - key: karpenter.sh/capacity-type

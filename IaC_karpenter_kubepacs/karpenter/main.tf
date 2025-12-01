@@ -18,6 +18,40 @@ module "karpenter" {
   }
 }
 
+# Karpenter Controller 추가 권한 정책
+resource "aws_iam_policy" "karpenter_controller_additional" {
+  name        = "${var.prefix}-karpenter-controller-additional"
+  description = "Additional permissions for Karpenter controller"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:PassRole",
+          "iam:ListInstanceProfiles",
+          "iam:CreateInstanceProfile",
+          "iam:TagInstanceProfile",
+          "iam:AddRoleToInstanceProfile",
+          "iam:RemoveRoleFromInstanceProfile",
+          "iam:DeleteInstanceProfile",
+          "iam:GetInstanceProfile",
+          "ec2:DescribeInstanceTypes",
+          "ec2:DescribeSpotPriceHistory"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# 추가 정책을 Controller Role에 연결
+resource "aws_iam_role_policy_attachment" "karpenter_controller_additional" {
+  role       = module.karpenter.iam_role_name
+  policy_arn = aws_iam_policy.karpenter_controller_additional.arn
+}
+
 resource "helm_release" "karpenter" {
   namespace           = "karpenter"
   create_namespace    = true

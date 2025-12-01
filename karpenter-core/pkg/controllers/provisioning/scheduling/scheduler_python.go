@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 
 	corev1 "k8s.io/api/core/v1"
@@ -61,26 +60,26 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 					})
 				}
 			}
-		}
 	}
-
-	allowedInstancesFile := "/tmp/allowed_instances.json"
+	}
+	
 	allowedJson, err := json.Marshal(allowedInstances)
 	if err != nil {
 		return Results{}, fmt.Errorf("failed to marshal allowed instances: %v", err)
 	}
-	if err := os.WriteFile(allowedInstancesFile, allowedJson, 0644); err != nil {
-		return Results{}, fmt.Errorf("failed to write allowed instances file: %v", err)
-	}
 
 	// 3. Call Python Script
-	cmd := exec.Command("python3", "/usr/local/bin/kubepacs_cli.py",
+	cmd := exec.Command("python3", "-u", "/usr/local/bin/kubepacs_cli.py",
 		"--pod-count", fmt.Sprintf("%d", len(pods)),
 		"--pod-cpu", fmt.Sprintf("%f", avgCPU),
 		"--pod-mem", fmt.Sprintf("%f", avgMem),
-		"--region", "ap-northeast-1",
-		"--allowed-instances-file", allowedInstancesFile,
+		"--region", "ap-northeast-2",
+		"--allowed-instances-file", "-", // Use stdin
 	)
+	
+	// Pass JSON via Stdin
+	cmd.Stdin = bytes.NewReader(allowedJson)
+
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
@@ -91,7 +90,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 		return Results{}, fmt.Errorf("python script execution failed: %v, stderr: %s", err, stderr.String())
 	}
 
-	// 3. Parse Output
+	// 4. Parse Output
 	var pythonResults []PythonSolverResult
 	if err := json.Unmarshal(out.Bytes(), &pythonResults); err != nil {
 		return Results{}, fmt.Errorf("failed to parse python output: %v, output: %s", err, out.String())
@@ -180,6 +179,10 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 				s.remainingResources[nc.NodePoolName] = resources.Subtract(s.remainingResources[nc.NodePoolName], chosenIT.Capacity)
 			}
 		}
+	}
+
+	for _, nc := range newNodeClaims {
+		nc.FinalizeScheduling()
 	}
 
 	return Results{
