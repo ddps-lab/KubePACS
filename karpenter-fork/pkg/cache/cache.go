@@ -26,7 +26,7 @@ const (
 	DefaultTTL = time.Minute
 	// UnavailableOfferingsTTL is the time before offerings that were marked as unavailable
 	// are removed from the cache and are available for launch again
-	UnavailableOfferingsTTL = 3 * time.Minute
+	UnavailableOfferingsTTL = 12 * time.Hour
 	// CapacityReservationAvailabilityTTL is the time we will persist cached capacity availability. Nominally, this is
 	// updated every minute, but we want to persist the data longer in the event of an EC2 API outage. 24 hours was the
 	// compormise made for API outage reseliency and gargage collecting entries for orphaned reservations.
