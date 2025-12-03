@@ -1,0 +1,122 @@
+# Based on https://github.com/GoogleCloudPlatform/cluster-toolkit/blob/main/community/examples/hpc-slurm-h4d.yaml
+blueprint_name: {{ name }}
+
+vars:
+  project_id: {{ project }}
+  deployment_name: {{ name }}
+  region: {{ region }}
+  zone: {{ zone }}
+  rdma_net_range: 192.168.32.0/24
+
+deployment_groups:
+- group: primary
+  modules:
+  - id: network
+    source: modules/network/vpc
+    settings:
+      enable_cloud_router: false
+      enable_cloud_nat: false
+      firewall_rules:
+      - name: {{ name }}-fw
+        direction: INGRESS
+        ranges: [0.0.0.0/0]
+        allow:
+        - protocol: tcp
+          ports: [22]
+        - protocol: icmp
+
+  - id: rdma-network
+    source: modules/network/vpc
+    settings:
+      network_name: {{ name }}-rdma-net-0
+      mtu: 8896
+      network_profile: https://www.googleapis.com/compute/beta/projects/$(vars.project_id)/global/networkProfiles/$(vars.zone)-vpc-falcon
+      network_routing_mode: REGIONAL
+      enable_cloud_router: false
+      enable_cloud_nat: false
+      subnetworks:
+      - subnet_name: {{ name }}-rdma-sub-0
+        subnet_region: $(vars.region)
+        subnet_ip: $(vars.rdma_net_range)
+        region: $(vars.region)
+      firewall_rules:
+      - name: {{ name }}-rdma-0
+        ranges: [$(vars.rdma_net_range)]
+        allow:
+        - protocol: tcp
+        - protocol: udp
+        - protocol: icmp
+
+  - id: h4d_startup
+    source: modules/scripts/startup-script
+    settings:
+      install_cloud_rdma_drivers: true
+      set_ofi_cloud_rdma_tunables: true
+
+  - id: compute_nodeset
+    source: community/modules/compute/schedmd-slurm-gcp-v6-nodeset
+    use: [network, h4d_startup]
+    settings:
+      enable_placement: true
+      node_count_dynamic_max: 0
+      node_count_static: {{ num_workers }}
+      enable_public_ips: true
+      enable_oslogin: false
+      machine_type: {{ worker_machine_type }}
+      disk_type: hyperdisk-balanced
+      bandwidth_tier: gvnic_enabled
+      allow_automatic_updates: false
+      instance_image_custom: true
+      on_host_maintenance: TERMINATE
+      enable_spot_vm: {{ enabe_spot_vm }}
+      additional_networks:
+        $(concat(
+          [{
+            network=null,
+            subnetwork=rdma-network.subnetwork_self_link,
+            subnetwork_project=vars.project_id,
+            nic_type="IRDMA",
+            queue_count=null,
+            network_ip=null,
+            stack_type=null,
+            access_config=null,
+            ipv6_access_config=[],
+            alias_ip_range=[]
+          }]
+        ))
+      instance_image:
+        family: {{ image_family }}
+        project: {{ image_project }}
+      advanced_machine_features:
+        threads_per_core: {{ threads_per_core }}
+      metadata:
+        {{ compute_tags }}
+
+  - id: compute_partition
+    source: community/modules/compute/schedmd-slurm-gcp-v6-partition
+    use:
+    - compute_nodeset
+    settings:
+      partition_name: compute
+      exclusive: false
+      is_default: true
+      partition_conf:
+        ResumeTimeout: 900
+        SuspendTimeout: 600
+
+  - id: slurm_controller
+    source: community/modules/scheduler/schedmd-slurm-gcp-v6-controller
+    use:
+    - network
+    - compute_partition
+    settings:
+      disk_size_gb: {{ nfs_size }}
+      instance_image_custom: true
+      instance_image:
+        family: {{ image_family }}
+        project: {{ image_project }}
+      machine_type: {{ headnode_machine_type }}
+      enable_oslogin: false
+      metadata:
+        {{ controller_tags }}
+      enable_controller_public_ips: true

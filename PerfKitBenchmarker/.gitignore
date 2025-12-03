@@ -1,0 +1,13 @@
+/build
+/perfkitbenchmarker/data/coremark*.tgz
+/perfkitbenchmarker/data/cpu2006*.tgz
+/setuptools-*.egg
+/setuptools*.zip
+*.py[co]
+*.swp
+/perfkitbenchmarker.egg-info
+/.tox
+/.venv
+*.iml
+/.idea
+/*git_ignore*
