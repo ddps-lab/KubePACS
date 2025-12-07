@@ -19,6 +19,6 @@ fi
 echo "Building and pushing multi-arch Docker image..."
 # Build the image from the parent directory to include karpenter-core
 cd $(dirname "$0")/..
-docker buildx build --platform linux/amd64 --build-arg CACHEBUST=$(date +%s) -f karpenter-fork/Dockerfile -t $ECR_REPO:v17 --push .
+docker buildx build --platform linux/amd64 --build-arg CACHEBUST=$(date +%s) -f karpenter-provider-aws/Dockerfile -t $ECR_REPO:v20 --push .
 
-echo "Done! Image pushed to $ECR_REPO:v17"
+echo "Done! Image pushed to $ECR_REPO:v20"

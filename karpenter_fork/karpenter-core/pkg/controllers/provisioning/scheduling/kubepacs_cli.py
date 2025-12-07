@@ -12,6 +12,10 @@ import sys
 import warnings
 warnings.filterwarnings("ignore")
 
+# Redirect stdout to stderr to ensure only the final JSON is printed to actual stdout
+original_stdout = sys.stdout
+sys.stdout = sys.stderr
+
 def fetch_and_cache_az_mapping(region='us-east-1'):
     try:
         ec2 = boto3.client('ec2', region_name=region)
@@ -111,8 +115,7 @@ def load_and_preprocess(df, pod_cpu, pod_mem, allowed_instances=None):
 
     df['T3'] = pd.to_numeric(df['T3'], errors='coerce')
     df.dropna(subset=['T3'], inplace=True)
-    # df['Max_Instance'] = (df['T3'] * 0.4).astype(int)
-    df['Max_Instance'] = 50
+    df['Max_Instance'] = (df['T3']).astype(int)
     df['PodAssignable'] = df.apply(
         lambda row: min(row['vCPU'] // pod_cpu, row['Memory'] // pod_mem), axis=1)
     df = df[df['PodAssignable'] > 0].reset_index(drop=True)
@@ -339,6 +342,7 @@ if __name__ == '__main__':
 
     result = getGoldenNodepool(df, args.pod_count, args.pod_cpu, args.pod_mem, allowed_instances=allowed_instances)
     if result:
-        print(json.dumps(result))
+        original_stdout.write(json.dumps(result))
+        original_stdout.flush()
     else:
         sys.exit(1)

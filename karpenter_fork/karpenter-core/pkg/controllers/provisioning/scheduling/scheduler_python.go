@@ -91,6 +91,8 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 	}
 
 	// 4. Parse Output
+	log.FromContext(ctx).Info("Python solver output", "output", out.String())
+
 	var pythonResults []PythonSolverResult
 	if err := json.Unmarshal(out.Bytes(), &pythonResults); err != nil {
 		return Results{}, fmt.Errorf("failed to parse python output: %v, output: %s", err, out.String())

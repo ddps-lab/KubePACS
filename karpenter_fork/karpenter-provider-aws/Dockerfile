@@ -6,7 +6,7 @@ WORKDIR /src
 ARG CACHEBUST=1
 RUN echo "Cache bust: $CACHEBUST"
 COPY karpenter-core/ karpenter-core/
-COPY karpenter-fork/ karpenter-fork/
+COPY karpenter-provider-aws/ karpenter-fork/
 
 WORKDIR /src/karpenter-fork
 
