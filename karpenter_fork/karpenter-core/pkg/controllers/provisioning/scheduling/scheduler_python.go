@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 
 	corev1 "k8s.io/api/core/v1"
@@ -68,12 +69,22 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 		return Results{}, fmt.Errorf("failed to marshal allowed instances: %v", err)
 	}
 
-	// 3. Call Python Script
+	// 3. Get AWS Region
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		region = os.Getenv("AWS_DEFAULT_REGION")
+	}
+	if region == "" {
+		region = "us-east-1" // fallback default
+	}
+	log.FromContext(ctx).Info("Using AWS region for Python solver", "region", region)
+
+	// 4. Call Python Script
 	cmd := exec.Command("python3", "-u", "/usr/local/bin/kubepacs_cli.py",
 		"--pod-count", fmt.Sprintf("%d", len(pods)),
 		"--pod-cpu", fmt.Sprintf("%f", avgCPU),
 		"--pod-mem", fmt.Sprintf("%f", avgMem),
-		"--region", "ap-northeast-2",
+		"--region", region,
 		"--allowed-instances-file", "-", // Use stdin
 	)
 	
@@ -90,7 +101,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 		return Results{}, fmt.Errorf("python script execution failed: %v, stderr: %s", err, stderr.String())
 	}
 
-	// 4. Parse Output
+	// 5. Parse Output
 	log.FromContext(ctx).Info("Python solver output", "output", out.String())
 
 	var pythonResults []PythonSolverResult
@@ -98,7 +109,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 		return Results{}, fmt.Errorf("failed to parse python output: %v, output: %s", err, out.String())
 	}
 
-	// 4. Create NodeClaims
+	// 6. Create NodeClaims
 	var newNodeClaims []*NodeClaim
 	podIndex := 0
 
