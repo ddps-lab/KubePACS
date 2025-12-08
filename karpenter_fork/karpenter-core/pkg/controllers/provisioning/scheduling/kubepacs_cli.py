@@ -7,6 +7,7 @@ import requests
 import boto3
 import os
 import sys
+import re
 
 # Suppress warnings
 import warnings
@@ -42,15 +43,22 @@ def get_aws_spot_prices(target_region='us-east-1', allow_arm=True):
             az = item.get('AZ')
             spot_price_value = item.get('SpotPrice')
             t3_value = item.get('T3')
+            sps_value = item.get('SPS')
+            if_value = item.get('IF')
+            ondemand_price_value = item.get('OndemandPrice')
 
             if instance_type and region == target_region:
                 spot_price_float = float(spot_price_value) if spot_price_value is not None else None
+                ondemand_price_float = float(ondemand_price_value) if ondemand_price_value is not None else None
                 
                 spot_prices.append({
                     'InstanceType': instance_type,
                     'AZ': az,
                     'SpotPrice': spot_price_float,
-                    'T3': t3_value
+                    'OndemandPrice': ondemand_price_float,
+                    'T3': t3_value,
+                    'SPS': sps_value,
+                    'IF': if_value
                 })
         
         df_spot = pd.DataFrame(spot_prices)
@@ -62,6 +70,8 @@ def get_aws_spot_prices(target_region='us-east-1', allow_arm=True):
 
         df_merged = pd.merge(df_spot, df_coremark[['InstanceType', 'CoreMark']], on='InstanceType', how='left')
         df_merged.dropna(subset=['CoreMark'], inplace=True)
+        # Filter out invalid spot prices
+        df_merged = df_merged[df_merged['SpotPrice'] > 0]
 
         client = boto3.client('ec2', region_name=target_region)
         instance_types_to_describe = df_merged['InstanceType'].dropna().unique().tolist()
@@ -93,7 +103,7 @@ def get_aws_spot_prices(target_region='us-east-1', allow_arm=True):
                 
                 df_specs = pd.DataFrame(specs_list)
                 df_merged = pd.merge(df_merged, df_specs, on='InstanceType', how='left')
-                df_merged = df_merged[['InstanceType', 'AZ', 'vCPU', 'Memory', 'T3', 'SpotPrice', 'CoreMark']]
+                df_merged = df_merged[['InstanceType', 'AZ', 'vCPU', 'Memory', 'T3', 'SPS', 'IF', 'SpotPrice', 'OndemandPrice', 'CoreMark']]
 
             except Exception as e:
                 sys.stderr.write(f"AWS API Error: {e}\n")
@@ -108,38 +118,100 @@ def get_aws_spot_prices(target_region='us-east-1', allow_arm=True):
         sys.stderr.write(f"Error getting spot prices: {e}\n")
         return None
 
-def load_and_preprocess(df, pod_cpu, pod_mem, allowed_instances=None):
-    # df is now passed directly
-    if 'AZ' in df.columns:
-        df.rename(columns={'AZ': 'AvailabilityZone'}, inplace=True)
+def extract_base_and_option(instance_family):
+    pattern = (
+        r"^([a-z]+[0-9]+(?:(?:a|g|i|m1ultra|m2|m2pro)(?:-flex)?|(?:-flex)?))"  # base
+        r"([a-z0-9]*)$"  # option (optional suffix)
+    )
+    match = re.match(pattern, instance_family)
+    if match:
+        base = match.group(1)
+        option = match.group(2)
+        return base, option
+    return instance_family, ""
+
+def scale_coremark_for_specialized(df, workload_intensity):
+    option_map = {
+        "network": "n",
+        "disk": "d",
+        "disk_network": ["d", "n"]
+    }
+
+    if workload_intensity not in option_map or workload_intensity == "default":
+        return df
+
+    current_option_map = option_map[workload_intensity]
+    if isinstance(current_option_map, list):
+        def is_target_option(opt_str):
+            return all(char_opt in opt_str for char_opt in current_option_map)
+    else:
+        def is_target_option(opt_str):
+            return current_option_map in opt_str
+
+    base_mask = df["InstanceOptions"] == ""
+    base_prices = df[base_mask].set_index("BaseFamily")["OndemandPrice"].to_dict()
+
+    def scale_row(row):
+        on_demand_price = row.get("OndemandPrice")
+        if on_demand_price is None or pd.isna(on_demand_price):
+            return row["CoreMark"]
+
+        if is_target_option(row["InstanceOptions"]) and row["BaseFamily"] in base_prices:
+            base_price = base_prices[row["BaseFamily"]]
+            if pd.notna(base_price) and base_price > 0 and pd.notna(on_demand_price):
+                return row["CoreMark"] * (on_demand_price / base_price)
+        return row["CoreMark"]
+
+    df["CoreMark"] = df.apply(scale_row, axis=1)
+    return df
+
+def load_and_preprocess(df, pod_cpu, pod_mem, workload_intensity="default", allowed_instances=None):
+    if df.empty:
+        return df
+
+    if workload_intensity != "default":
+        df["InstanceFamily"] = df["InstanceType"].str.split(".").str[0]
+        df[["BaseFamily", "InstanceOptions"]] = df["InstanceFamily"].apply(
+            lambda x: pd.Series(extract_base_and_option(x))
+        )
 
     df['T3'] = pd.to_numeric(df['T3'], errors='coerce')
     df.dropna(subset=['T3'], inplace=True)
-    df['Max_Instance'] = (df['T3']).astype(int)
+    df['Max_Instance'] = df['T3']
+    
+    # Subtract overhead (simulated kube-reserved)
+    # vCPU: 0.1 core, Memory: 200 MiB
+    df['Net_vCPU'] = df['vCPU'] - 0.1
+    df['Net_Memory'] = df['Memory'] - 200
+    
     df['PodAssignable'] = df.apply(
-        lambda row: min(row['vCPU'] // pod_cpu, row['Memory'] // pod_mem), axis=1)
+        lambda row: max(0, min(row['Net_vCPU'] // pod_cpu, row['Net_Memory'] // pod_mem)), axis=1)
     df = df[df['PodAssignable'] > 0].reset_index(drop=True)
+    
     df['CoreMark'] = pd.to_numeric(df['CoreMark'], errors='coerce')
     df['SpotPrice'] = pd.to_numeric(df['SpotPrice'], errors='coerce')
-    # Fetch AZ mapping (ZoneId -> ZoneName)
-    ec2 = boto3.client('ec2', region_name=args.region)
-    az_response = ec2.describe_availability_zones()
-    zone_id_to_name = {z['ZoneId']: z['ZoneName'] for z in az_response['AvailabilityZones']}
+    df['OndemandPrice'] = pd.to_numeric(df['OndemandPrice'], errors='coerce')
+
+    # AZ Handling: Ensure consistent naming
+    if 'AZ' in df.columns:
+        df.rename(columns={'AZ': 'AvailabilityZone'}, inplace=True)
     
-    # If df has ZoneIds (e.g. apne2-az1), map them to ZoneNames
-    # Check if the first element looks like a ZoneId (e.g. ends with -az\d)
+    # Heuristic AZ mapping correction for ZoneIds
     if not df.empty:
         first_az = df['AvailabilityZone'].iloc[0]
-        if '-az' in first_az: # Heuristic check
-             df['AvailabilityZone'] = df['AvailabilityZone'].map(zone_id_to_name).fillna(df['AvailabilityZone'])
+        if '-az' in str(first_az): 
+            az_mapping = fetch_and_cache_az_mapping(args.region) # Use global args.region if available
+            df['AvailabilityZone'] = df['AvailabilityZone'].map(az_mapping).fillna(df['AvailabilityZone'])
 
     df['InstanceKey'] = df['InstanceType'] + '_' + df['AvailabilityZone']
+    df = df.drop_duplicates(subset=['InstanceKey'])
 
+    # Apply Workload Intensity Scaling
+    df = scale_coremark_for_specialized(df, workload_intensity)
+
+    # Filtering by allowed_instances
     if allowed_instances:
-        # Rename 'AZ' to 'AvailabilityZone' in df to match allowed_instances structure
-        df = df.rename(columns={'AZ': 'AvailabilityZone'})
-        
-        # Convert allowed_instances list to a DataFrame
+        df = df.rename(columns={'AZ': 'AvailabilityZone'}) # Ensure consistency
         allowed_df = pd.DataFrame(allowed_instances)
         allowed_df.rename(columns={'instance_type': 'InstanceType', 'availability_zone': 'AvailabilityZone'}, inplace=True)
         
@@ -154,80 +226,132 @@ def load_and_preprocess(df, pod_cpu, pod_mem, allowed_instances=None):
             print(msg, file=sys.stderr, flush=True)
             sys.exit(1)
         
-        df = df_merged # Update df to the merged result
+        df = df_merged
 
     return df
 
 def define_problem():
-    return LpProblem("SpotScheduling", LpMinimize)
+    return LpProblem("Pod_Instance_Selection", LpMinimize)
 
 def define_variables(keys):
-    return LpVariable.dicts("Instance", keys, 0, None, LpInteger)
+    return LpVariable.dicts("x", keys, lowBound=0, cat='Integer')
 
-def set_alpha_weighted_objective(prob, x_vars, df, alpha):
-    costs = dict(zip(df['InstanceKey'], df['SpotPrice']))
-    # Performance: CoreMark * PodAssignable
-    perfs = dict(zip(df['InstanceKey'], df['CoreMark'] * df['PodAssignable']))
+def set_alpha_weighted_objective(prob, x_vars, df, alpha, scale="min"):
+    keys = df['InstanceKey'].tolist()
+    spot = dict(zip(keys, df['SpotPrice']))
+    perf = dict(zip(keys, df['CoreMark']))
+    pod_assign = dict(zip(keys, df['PodAssignable']))
+
+    if scale == "min":
+        # min based scaling
+        min_spot = min(spot.values())
+        min_perf = min([p * pod_assign[k] for k, p in perf.items()])
+        
+        normalized_cost = lpSum([(spot[k] / min_spot) * x_vars[k] for k in keys])
+        normalized_perf = lpSum([(perf[k] * pod_assign[k] / min_perf) * x_vars[k] for k in keys])
     
-    # Objective: Minimize (1-alpha)*Cost - alpha*Performance
-    prob += lpSum([(1-alpha) * costs[k] * x_vars[k] - alpha * perfs[k] * x_vars[k] for k in x_vars])
+    elif scale == "log":
+        # log based scaling
+        log_spot = {k: np.log1p(v) for k, v in spot.items()}
+        log_perf = {k: np.log1p(p * pod_assign[k]) for k, p in perf.items()}
+        
+        min_log_spot = min(log_spot.values())
+        min_log_perf = min(log_perf.values())
+        
+        normalized_cost = lpSum([(log_spot[k] / min_log_spot) * x_vars[k] for k in keys])
+        normalized_perf = lpSum([(log_perf[k] / min_log_perf) * x_vars[k] for k in keys])
+    
+    elif scale == "min-max":
+        # min-max based scaling
+        min_spot = min(spot.values())
+        max_spot = max(spot.values())
+        min_perf = min([p * pod_assign[k] for k, p in perf.items()])
+        max_perf = max([p * pod_assign[k] for k, p in perf.items()])
+        
+        normalized_cost = lpSum([((spot[k] - min_spot) / (max_spot - min_spot)) * x_vars[k] for k in keys])
+        normalized_perf = lpSum([((perf[k] * pod_assign[k] - min_perf) / (max_perf - min_perf)) * x_vars[k] for k in keys])
+    
+    # Weighted objective function
+    prob += (1 - alpha) * normalized_cost - alpha * normalized_perf
 
 def add_constraints(prob, x_vars, df, pod_count):
-    # Constraint 1: Total Pods >= pod_count
-    pod_capacities = dict(zip(df['InstanceKey'], df['PodAssignable']))
-    prob += lpSum([pod_capacities[k] * x_vars[k] for k in x_vars]) >= pod_count
-    
-    # Constraint 2: Max instances per type
-    max_instances = dict(zip(df['InstanceKey'], df['Max_Instance']))
-    for k in x_vars:
-        prob += x_vars[k] <= max_instances[k]
+    keys = df['InstanceKey'].tolist()
+    pod_assign = dict(zip(keys, df['PodAssignable']))
+    max_inst = dict(zip(keys, df['Max_Instance']))
+
+    # Min Pod Requirement
+    prob += lpSum([pod_assign[k] * x_vars[k] for k in keys]) >= pod_count
+
+    # Max Instance Limit
+    for k in keys:
+        prob += x_vars[k] <= max_inst[k]
 
 def solve_and_report(prob, x_vars, df, alpha):
     prob.solve(PULP_CBC_CMD(msg=0))
     
     if LpStatus[prob.status] != 'Optimal':
-        return None, {}
+        return [], {}
         
+    # Create a lookup dictionary manually to avoid duplicate index errors
+    keys = {row['InstanceKey']: row.to_dict() for _, row in df.iterrows()}
     results = []
     total_cost = 0
-    total_perf = 0
+    total_pod_weighted_coremark = 0
+    total_pods_assigned_by_model = 0
     
-    for k in x_vars:
-        count = x_vars[k].varValue
-        if count > 0:
-            row = df[df['InstanceKey'] == k].iloc[0]
-            cost = row['SpotPrice'] * count
-            perf = row['CoreMark'] * row['PodAssignable'] * count
-            total_cost += cost
-            total_perf += perf
+    for k, var in x_vars.items():
+        if var.varValue > 0:
+            info = keys[k]
+            # Debug log to file
+            with open('/tmp/kubepacs_debug.log', 'a') as debug_f:
+                debug_f.write(f"[DEBUG] Key: {k}, Raw VarValue: {var.varValue}, Int Cast: {int(var.varValue)}\n")
+                debug_f.write(f"[DEBUG] Instance: {info['InstanceType']}, vCPU: {info['vCPU']}, Memory: {info['Memory']}, PodAssignable: {info['PodAssignable']}, SpotPrice: {info['SpotPrice']}\n")
+            
+            count = int(var.varValue)
+            pods_on_this_type = info['PodAssignable'] * count
+            cost = info['SpotPrice'] * count
+            pod_weighted_coremark = info['CoreMark'] * pods_on_this_type
+            
             results.append({
-                'Type': row['InstanceType'],
-                'AZ': row['AvailabilityZone'],
+                'InstanceKey': k,
+                'Type': info['InstanceType'],
+                'AZ': info['AvailabilityZone'], # Use consistent key
                 'Count': count,
-                'TotalPodsOnType': row['PodAssignable'] * count
+                'TotalPodsOnType': pods_on_this_type
             })
+            
+            total_cost += cost
+            total_pod_weighted_coremark += pod_weighted_coremark
+            total_pods_assigned_by_model += pods_on_this_type
             
     summary = {
         'Total Cost': total_cost,
-        'Total PodWeighted CoreMark': total_perf
+        'Total PodWeighted CoreMark': total_pod_weighted_coremark,
+        'Total Pods Assigned': total_pods_assigned_by_model
     }
     return results, summary
 
-def generate_alpha_solutions(df, pod_count, pod_cpu, pod_mem, alpha_values, allowed_instances=None):
+def generate_alpha_solutions(df, pod_count, pod_cpu, pod_mem, alpha_values, workload_intensity="default", scale="min", allowed_instances=None):
     alpha_solutions = []
     
+    # Preprocess once if possible, but since workload_intensity is constant, we can.
+    # However allowed_instances might be applied.
+    processed_df = load_and_preprocess(df.copy(), pod_cpu, pod_mem, workload_intensity, allowed_instances)
+    
+    if processed_df.empty:
+        return []
+
+    keys = processed_df['InstanceKey'].tolist()
+
     for alpha in alpha_values:
-        processed_df = load_and_preprocess(df.copy(), pod_cpu, pod_mem, allowed_instances)
-        if processed_df.empty:
-            continue
-        keys = processed_df['InstanceKey'].tolist()
         prob = define_problem()
         x_vars = define_variables(keys)
         
-        set_alpha_weighted_objective(prob, x_vars, processed_df, alpha)
+        set_alpha_weighted_objective(prob, x_vars, processed_df, alpha, scale=scale)
         add_constraints(prob, x_vars, processed_df, pod_count)
         
         results, summary = solve_and_report(prob, x_vars, processed_df, alpha)
+        
         if results:
             alpha_solutions.append({
                 'alpha': alpha,
@@ -238,26 +362,47 @@ def generate_alpha_solutions(df, pod_count, pod_cpu, pod_mem, alpha_values, allo
     
     return alpha_solutions
 
-def getGoldenNodepool(df, pod_count, pod_cpu, pod_mem, allowed_instances=None, left=0.2, right=0.8, tolerance=0.01, max_iterations=20):
+def getGoldenNodepool(df, pod_count, pod_cpu, pod_mem, allowed_instances=None, workload_intensity="default", left=0.0, right=1, tolerance=0.01, max_iterations=20, scale="min"):
     golden_ratio = (np.sqrt(5) - 1) / 2
-    x1 = left + (1 - golden_ratio) * (right - left)
-    x2 = left + golden_ratio * (right - left)
     
     all_results = []
     
-    points1 = generate_alpha_solutions(df, pod_count, pod_cpu, pod_mem, [x1], allowed_instances)
-    if points1:
-        f1 = points1[0]['performance'] / points1[0]['cost']
-        all_results.append(points1[0])
-    else:
-        f1 = -float('inf')
+    best_alpha = None
+    best_perf_per_cost = -float('inf')
+    best_cost = None
+    best_performance = None
+    best_results = None
     
-    points2 = generate_alpha_solutions(df, pod_count, pod_cpu, pod_mem, [x2], allowed_instances)
-    if points2:
-        f2 = points2[0]['performance'] / points2[0]['cost']
-        all_results.append(points2[0])
-    else:
-        f2 = -float('inf')
+    def evaluate_alpha(alpha):
+        nonlocal best_alpha, best_perf_per_cost, best_cost, best_performance, best_results
+        
+        alpha_values = [alpha]
+        points = generate_alpha_solutions(df, pod_count, pod_cpu, pod_mem, alpha_values, workload_intensity=workload_intensity, scale=scale, allowed_instances=allowed_instances)
+        
+        if not points:
+            return -float('inf')
+        
+        point = points[0]
+        all_results.append(point)
+        
+        perf_per_cost = point['performance'] / point['cost']
+        
+        if perf_per_cost > best_perf_per_cost:
+            best_perf_per_cost = perf_per_cost
+            best_alpha = alpha
+            best_cost = point['cost']
+            best_performance = point['performance']
+            best_results = point['results']
+        
+        return perf_per_cost
+    
+    x1 = left + (1 - golden_ratio) * (right - left)
+    x2 = left + golden_ratio * (right - left)
+    
+    f_left = evaluate_alpha(left)
+    f1 = evaluate_alpha(x1)
+    f2 = evaluate_alpha(x2)
+    f_right = evaluate_alpha(right)
     
     iteration = 0
     while (right - left) > tolerance and iteration < max_iterations:
@@ -266,47 +411,39 @@ def getGoldenNodepool(df, pod_count, pod_cpu, pod_mem, allowed_instances=None, l
             x2 = x1
             f2 = f1
             x1 = left + (1 - golden_ratio) * (right - left)
-            points1 = generate_alpha_solutions(df, pod_count, pod_cpu, pod_mem, [x1], allowed_instances)
-            if points1:
-                f1 = points1[0]['performance'] / points1[0]['cost']
-                all_results.append(points1[0])
-            else:
-                f1 = -float('inf')
+            f1 = evaluate_alpha(x1)
         else:
             left = x1
             x1 = x2
             f1 = f2
             x2 = left + golden_ratio * (right - left)
-            points2 = generate_alpha_solutions(df, pod_count, pod_cpu, pod_mem, [x2], allowed_instances)
-            if points2:
-                f2 = points2[0]['performance'] / points2[0]['cost']
-                all_results.append(points2[0])
-            else:
-                f2 = -float('inf')
+            f2 = evaluate_alpha(x2)
         iteration += 1
     
-    best_result = None
-    best_performance = -float('inf')
+    # Iterate all results to find best based on specific metric: performance / (cost * actual_pods)
+    final_best_result = None
+    final_best_metric = -float('inf')
     
     for result in all_results:
         actual_pods = sum(r['TotalPodsOnType'] for r in result['results'])
         if actual_pods == 0: continue
+        
+        # New performance metric from Library v4
         performance_metric = result['performance'] / (result['cost'] * actual_pods)
         
-        if performance_metric > best_performance:
-            best_result = result
-            best_performance = performance_metric
+        if performance_metric > final_best_metric:
+            final_best_result = result
+            final_best_metric = performance_metric
     
-    if not best_result:
+    if not final_best_result:
         return None
 
     target_instances = []
-    az_mapping = fetch_and_cache_az_mapping()
     
-    for node in best_result['results']:
+    for node in final_best_result['results']:
         target_instances.append({
             "instance_type": str(node['Type']),
-            "availability_zone": str(az_mapping.get(node['AZ'], node['AZ'])),
+            "availability_zone": str(node['AZ']), # Already mapped and clean
             "num_instances": int(node['Count'])
         })
 
@@ -322,6 +459,7 @@ if __name__ == '__main__':
     parser.add_argument('--pod-mem', type=float, required=True)
     parser.add_argument('--region', type=str, default='us-east-1')
     parser.add_argument('--allowed-instances-file', type=str, help='Path to JSON file containing allowed instances')
+    parser.add_argument('--workload-intensity', type=str, default='default', help='Workload intensity: default, network, disk, disk_network')
     args = parser.parse_args()
 
     df = get_aws_spot_prices(target_region=args.region, allow_arm=False)
@@ -340,7 +478,10 @@ if __name__ == '__main__':
             sys.stderr.write(f"Error reading allowed instances file: {e}\n")
             sys.exit(1)
 
-    result = getGoldenNodepool(df, args.pod_count, args.pod_cpu, args.pod_mem, allowed_instances=allowed_instances)
+    result = getGoldenNodepool(df, args.pod_count, args.pod_cpu, args.pod_mem, 
+                               allowed_instances=allowed_instances,
+                               workload_intensity=args.workload_intensity)
+    
     if result:
         original_stdout.write(json.dumps(result))
         original_stdout.flush()

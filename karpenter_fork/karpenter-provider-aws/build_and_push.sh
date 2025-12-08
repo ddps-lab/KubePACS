@@ -5,6 +5,7 @@ set -e
 ECR_REPO="786382940258.dkr.ecr.ap-northeast-2.amazonaws.com/karpenter-custom"
 REGION="ap-northeast-2"
 PROFILE="default"
+VERSION="v28"
 
 # Login to ECR
 echo "Logging in to ECR..."
@@ -19,6 +20,6 @@ fi
 echo "Building and pushing multi-arch Docker image..."
 # Build the image from the parent directory to include karpenter-core
 cd $(dirname "$0")/..
-docker buildx build --platform linux/amd64 --build-arg CACHEBUST=$(date +%s) -f karpenter-provider-aws/Dockerfile -t $ECR_REPO:v20 --push .
+docker buildx build --platform linux/amd64 --build-arg CACHEBUST=$(date +%s) -f karpenter-provider-aws/Dockerfile -t $ECR_REPO:$VERSION --push .
 
-echo "Done! Image pushed to $ECR_REPO:v20"
+echo "Done! Image pushed to $ECR_REPO:$VERSION"

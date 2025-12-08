@@ -102,6 +102,9 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 	}
 
 	// 5. Parse Output
+	if stderr.Len() > 0 {
+		log.FromContext(ctx).Info("Python solver stderr", "stderr", stderr.String())
+	}
 	log.FromContext(ctx).Info("Python solver output", "output", out.String())
 
 	var pythonResults []PythonSolverResult
