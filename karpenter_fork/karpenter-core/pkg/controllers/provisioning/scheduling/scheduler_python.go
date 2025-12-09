@@ -54,7 +54,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 		}
 		for _, it := range nct.InstanceTypeOptions {
 			for _, offering := range it.Offerings {
-				if offering.Available {
+				if offering.Available && offering.CapacityType() == v1.CapacityTypeSpot {
 					allowedInstances = append(allowedInstances, AllowedInstance{
 						InstanceType:     it.Name,
 						AvailabilityZone: offering.Zone(),
@@ -68,6 +68,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 	if err != nil {
 		return Results{}, fmt.Errorf("failed to marshal allowed instances: %v", err)
 	}
+	log.FromContext(ctx).Info(fmt.Sprintf("Allowed instances count: %d", len(allowedInstances)))
 
 	// 3. Get AWS Region
 	region := os.Getenv("AWS_REGION")
@@ -87,6 +88,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 		"--region", region,
 		"--allowed-instances-file", "-", // Use stdin
 	)
+	cmd.Dir = "/tmp"
 	
 	// Pass JSON via Stdin
 	cmd.Stdin = bytes.NewReader(allowedJson)

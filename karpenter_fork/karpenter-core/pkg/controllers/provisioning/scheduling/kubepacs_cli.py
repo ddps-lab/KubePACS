@@ -385,16 +385,22 @@ def getGoldenNodepool(df, pod_count, pod_cpu, pod_mem, allowed_instances=None, w
         point = points[0]
         all_results.append(point)
         
-        perf_per_cost = point['performance'] / point['cost']
+        actual_pods = sum(r['TotalPodsOnType'] for r in point['results'])
+        if actual_pods == 0:
+            return -float('inf')
+
+        # New performance metric from Library v4: performance / (cost * actual_pods)
+        # This penalizes large nodes if they aren't fully utilized for the specific pod count
+        calc_metric = point['performance'] / (point['cost'] * actual_pods)
         
-        if perf_per_cost > best_perf_per_cost:
-            best_perf_per_cost = perf_per_cost
+        if calc_metric > best_perf_per_cost:
+            best_perf_per_cost = calc_metric
             best_alpha = alpha
             best_cost = point['cost']
             best_performance = point['performance']
             best_results = point['results']
         
-        return perf_per_cost
+        return calc_metric
     
     x1 = left + (1 - golden_ratio) * (right - left)
     x2 = left + golden_ratio * (right - left)
@@ -420,7 +426,7 @@ def getGoldenNodepool(df, pod_count, pod_cpu, pod_mem, allowed_instances=None, w
             f2 = evaluate_alpha(x2)
         iteration += 1
     
-    # Iterate all results to find best based on specific metric: performance / (cost * actual_pods)
+    # Iterate all results to find best based on specific metric
     final_best_result = None
     final_best_metric = -float('inf')
     
@@ -428,7 +434,7 @@ def getGoldenNodepool(df, pod_count, pod_cpu, pod_mem, allowed_instances=None, w
         actual_pods = sum(r['TotalPodsOnType'] for r in result['results'])
         if actual_pods == 0: continue
         
-        # New performance metric from Library v4
+        # Consistent metric calculation
         performance_metric = result['performance'] / (result['cost'] * actual_pods)
         
         if performance_metric > final_best_metric:
@@ -451,7 +457,10 @@ def getGoldenNodepool(df, pod_count, pod_cpu, pod_mem, allowed_instances=None, w
 
 if __name__ == '__main__':
     # Change CWD to /tmp to allow PuLP to write temp files
-    os.chdir('/tmp')
+    try:
+        os.chdir('/tmp')
+    except Exception as e:
+        sys.stderr.write(f"Warning: Could not chdir to /tmp: {e}\n")
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--pod-count', type=int, required=True)

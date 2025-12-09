@@ -10,7 +10,7 @@ DEPLOYMENT_NAME="karpenter"
 # This matches the repo in build_and_push.sh
 IMAGE_REPO="786382940258.dkr.ecr.ap-northeast-2.amazonaws.com/karpenter-custom"
 # Default to v20 as per build_and_push.sh, but allow override
-IMAGE_TAG="${1:-v28}"
+IMAGE_TAG="${1:-v30}"
 
 echo "==============================================="
 echo " Deploying Karpenter Custom Image: $IMAGE_TAG"
