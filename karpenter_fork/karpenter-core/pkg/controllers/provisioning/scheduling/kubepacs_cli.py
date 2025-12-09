@@ -182,7 +182,7 @@ def load_and_preprocess(df, pod_cpu, pod_mem, workload_intensity="default", allo
     # Subtract overhead (simulated kube-reserved)
     # vCPU: 0.1 core, Memory: 200 MiB
     df['Net_vCPU'] = df['vCPU'] - 0.1
-    df['Net_Memory'] = df['Memory'] - 200
+    df['Net_Memory'] = df['Memory'] - 0.2
     
     df['PodAssignable'] = df.apply(
         lambda row: max(0, min(row['Net_vCPU'] // pod_cpu, row['Net_Memory'] // pod_mem)), axis=1)
