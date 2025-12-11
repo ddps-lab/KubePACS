@@ -179,10 +179,12 @@ def load_and_preprocess(df, pod_cpu, pod_mem, workload_intensity="default", allo
     df.dropna(subset=['T3'], inplace=True)
     df['Max_Instance'] = df['T3']
     
-    # Subtract overhead (simulated kube-reserved)
-    # vCPU: 0.1 core, Memory: 200 MiB
+    # Subtract overhead to match Karpenter's allocatable calculation
+    # vCPU: 0.1 core overhead
+    # Memory: vmMemoryOverheadPercent (7.5%) - matches Karpenter's default
+    VM_MEMORY_OVERHEAD_PERCENT = 0.075
     df['Net_vCPU'] = df['vCPU'] - 0.1
-    df['Net_Memory'] = df['Memory'] - 0.2
+    df['Net_Memory'] = df['Memory'] * (1 - VM_MEMORY_OVERHEAD_PERCENT)
     
     df['PodAssignable'] = df.apply(
         lambda row: max(0, min(row['Net_vCPU'] // pod_cpu, row['Net_Memory'] // pod_mem)), axis=1)
@@ -444,8 +446,14 @@ def getGoldenNodepool(df, pod_count, pod_cpu, pod_mem, allowed_instances=None, w
     if not final_best_result:
         return None
 
+    # Log best alpha value
+    print(f"[KubePACS] Best alpha: {final_best_result['alpha']:.4f}, "
+          f"Cost: ${final_best_result['cost']:.4f}, "
+          f"Performance: {final_best_result['performance']:.2f}, "
+          f"Metric (perf/cost/pods): {final_best_metric:.4f}", file=sys.stderr, flush=True)
+
     target_instances = []
-    
+
     for node in final_best_result['results']:
         target_instances.append({
             "instance_type": str(node['Type']),

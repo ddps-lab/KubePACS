@@ -27,6 +27,37 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 		return Results{}, nil
 	}
 
+	// 0. First, try to schedule pods to existing nodes (including inflight)
+	// This matches the original Karpenter behavior and prevents over-provisioning
+	remainingPods := []*corev1.Pod{}
+	for _, p := range pods {
+		// Try existing nodes first (Ready + Not Ready inflight nodes)
+		if err := s.addToExistingNode(ctx, p); err != nil {
+			// Try inflight NodeClaims created in this scheduling loop
+			if err := s.addToInflightNode(ctx, p); err != nil {
+				remainingPods = append(remainingPods, p)
+			}
+		}
+	}
+
+	// If all pods scheduled to existing/inflight nodes, we're done
+	if len(remainingPods) == 0 {
+		log.FromContext(ctx).Info("All pods scheduled to existing/inflight nodes, skipping Python solver")
+		for _, nc := range s.newNodeClaims {
+			nc.FinalizeScheduling()
+		}
+		return Results{
+			NewNodeClaims: s.newNodeClaims,
+			ExistingNodes: s.existingNodes,
+			PodErrors:     nil,
+		}, nil
+	}
+
+	// Use remaining pods for Python solver
+	log.FromContext(ctx).Info("Scheduling remaining pods with Python solver",
+		"totalPods", len(pods), "remainingPods", len(remainingPods))
+	pods = remainingPods
+
 	// 1. Calculate Pod Requirements (Average)
 	var totalCPU, totalMem float64
 	for _, p := range pods {
