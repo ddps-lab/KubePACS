@@ -412,7 +412,7 @@ def getGoldenNodepool(df, pod_count, pod_cpu, pod_mem, allowed_instances=None, w
     
     iteration = 0
     while (right - left) > tolerance and iteration < max_iterations:
-        if f1 > f2:
+        if f1 >= f2:
             right = x2
             x2 = x1
             f2 = f1
