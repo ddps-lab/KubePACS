@@ -27,7 +27,47 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 		return Results{}, nil
 	}
 
-	// 0. First, try to schedule pods to existing nodes (including inflight)
+	// 0. Filter pods that match kubepacs NodePool only
+	// Pods that don't match kubepacs NodePool should be handled by the original Karpenter logic
+	kubepacsPods := []*corev1.Pod{}
+	for _, p := range pods {
+		// Check if this pod matches any kubepacs NodePool
+		matchesKubepacs := false
+		for _, nct := range s.nodeClaimTemplates {
+			if val, ok := nct.Annotations["kubepacs.io/strategy"]; !ok || val != "kubepacs" {
+				continue
+			}
+			// Check if pod's requirements are compatible with this kubepacs template
+			// by checking the kubecaps-scenario-instance label
+			if nct.Labels != nil {
+				if scenarioInstance, ok := nct.Labels["kubecaps-scenario-instance"]; ok {
+					// Check pod's nodeSelector or nodeAffinity
+					if p.Spec.NodeSelector != nil {
+						if podScenario, ok := p.Spec.NodeSelector["kubecaps-scenario-instance"]; ok {
+							if podScenario == scenarioInstance {
+								matchesKubepacs = true
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+		if matchesKubepacs {
+			kubepacsPods = append(kubepacsPods, p)
+		}
+	}
+
+	// If no pods match kubepacs NodePool, return error to fallback to original logic
+	if len(kubepacsPods) == 0 {
+		return Results{}, fmt.Errorf("no pods match kubepacs NodePool, fallback to original scheduler")
+	}
+
+	log.FromContext(ctx).Info("Filtered pods for kubepacs",
+		"totalPods", len(pods), "kubepacsPods", len(kubepacsPods))
+	pods = kubepacsPods
+
+	// 1. First, try to schedule pods to existing nodes (including inflight)
 	// This matches the original Karpenter behavior and prevents over-provisioning
 	remainingPods := []*corev1.Pod{}
 	for _, p := range pods {
