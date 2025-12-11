@@ -13,7 +13,7 @@ echo "=== Step 2: Propagating Image to Other Regions ==="
 
 # 3. Restart Karpenter in All Clusters
 echo "=== Step 3: Rolling out changes to all clusters ==="
-CLUSTERS=("kubepacs-a1" "kubepacs-e1" "kubepacs-w1" "kubepacs-w2")
+CLUSTERS=("kubepacs-a1" "kubepacs-e1" "kubepacs-w1" "kubepacs-w2" "arn:aws:eks:ap-northeast-2:786382940258:cluster/kubepacs-t1-k8s-cluster")
 
 for ctx in "${CLUSTERS[@]}"; do
     echo "------------------------------------------------"

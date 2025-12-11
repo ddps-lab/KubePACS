@@ -5,7 +5,7 @@ set -e
 ECR_REPO="786382940258.dkr.ecr.ap-northeast-1.amazonaws.com/karpenter-custom"
 REGION="ap-northeast-1"
 PROFILE="default"
-VERSION="v30"
+VERSION="v31"
 
 # Login to ECR
 echo "Logging in to ECR..."

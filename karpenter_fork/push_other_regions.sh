@@ -5,7 +5,7 @@ ACCOUNT_ID="786382940258"
 SOURCE_REGION="ap-northeast-1"
 SOURCE_IMAGE="${ACCOUNT_ID}.dkr.ecr.${SOURCE_REGION}.amazonaws.com/karpenter-custom:latest"
 
-REGIONS=("eu-west-1" "us-east-1" "us-west-2")
+REGIONS=("eu-west-1" "us-east-1" "us-west-2" "ap-northeast-2") 
 
 for REGION in "${REGIONS[@]}"; do
     echo "Processing region: $REGION"
