@@ -2,8 +2,8 @@
 set -e
 
 # Configuration
-ECR_REPO="786382940258.dkr.ecr.ap-northeast-1.amazonaws.com/karpenter-custom"
-REGION="ap-northeast-1"
+ECR_REPO="786382940258.dkr.ecr.us-east-1.amazonaws.com/karpenter-custom"
+REGION="us-east-1"
 PROFILE="default"
 VERSION="v31"
 
