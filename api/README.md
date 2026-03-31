@@ -1,6 +1,6 @@
 # KubePACS API
 
-KubePACS ILP solver deployed as an AWS Lambda container (arm64) behind CloudFront.
+This API implements the optimization functionality of KubePACS.
 
 **Endpoint:** `https://api.kubepacs.ddps.cloud/`
 
@@ -42,21 +42,4 @@ curl -X POST "https://api.kubepacs.ddps.cloud/" \
     }
   ]
 }
-```
-
-## Deployment
-
-```bash
-# Build & push
-cd api
-docker build --platform linux/arm64 -t api.kubepacs.ddps.cloud .
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 786382940258.dkr.ecr.us-east-1.amazonaws.com
-docker tag api.kubepacs.ddps.cloud:latest 786382940258.dkr.ecr.us-east-1.amazonaws.com/api.kubepacs.ddps.cloud:latest
-docker push 786382940258.dkr.ecr.us-east-1.amazonaws.com/api.kubepacs.ddps.cloud:latest
-
-# Update Lambda
-aws lambda update-function-code \
-  --function-name api-kubepacs-ddps-cloud \
-  --image-uri 786382940258.dkr.ecr.us-east-1.amazonaws.com/api.kubepacs.ddps.cloud:latest \
-  --region us-east-1
-```
+``'
