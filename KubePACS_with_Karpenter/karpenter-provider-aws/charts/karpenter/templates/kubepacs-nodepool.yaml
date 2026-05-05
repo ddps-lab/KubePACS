@@ -1,0 +1,31 @@
+{{- if .Values.kubepacsNodePool.enabled }}
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: {{ .Values.kubepacsNodePool.name | quote }}
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+spec:
+  template:
+    metadata:
+      annotations:
+        {{ .Values.settings.kubepacs.strategyAnnotation }}: {{ .Values.settings.kubepacs.strategyValue | quote }}
+        {{- with .Values.kubepacsNodePool.template.metadata.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.kubepacsNodePool.template.metadata.labels }}
+      labels:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      requirements:
+        {{- toYaml .Values.kubepacsNodePool.template.spec.requirements | nindent 8 }}
+      nodeClassRef:
+        group: {{ .Values.kubepacsNodePool.nodeClassRef.group | quote }}
+        kind: {{ .Values.kubepacsNodePool.nodeClassRef.kind | quote }}
+        name: {{ .Values.kubepacsNodePool.nodeClassRef.name | quote }}
+  limits:
+    {{- toYaml .Values.kubepacsNodePool.limits | nindent 4 }}
+  disruption:
+    {{- toYaml .Values.kubepacsNodePool.disruption | nindent 4 }}
+{{- end }}

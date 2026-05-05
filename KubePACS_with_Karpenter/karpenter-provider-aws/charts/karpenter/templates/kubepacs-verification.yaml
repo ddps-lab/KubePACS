@@ -1,0 +1,27 @@
+{{- if .Values.kubepacsVerification.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.kubepacsVerification.name | quote }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.kubepacsVerification.name | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+spec:
+  replicas: {{ .Values.kubepacsVerification.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.kubepacsVerification.name | quote }}
+      app.kubernetes.io/instance: {{ .Release.Name | quote }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.kubepacsVerification.name | quote }}
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: {{ .Values.kubepacsVerification.name | quote }}
+          image: {{ .Values.kubepacsVerification.image | quote }}
+          resources:
+            {{- toYaml .Values.kubepacsVerification.resources | nindent 12 }}
+{{- end }}

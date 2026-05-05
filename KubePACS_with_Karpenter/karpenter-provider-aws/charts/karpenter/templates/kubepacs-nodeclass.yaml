@@ -1,0 +1,27 @@
+{{- if .Values.kubepacsNodeClass.enabled }}
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: {{ .Values.kubepacsNodeClass.name | quote }}
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+spec:
+  amiFamily: {{ .Values.kubepacsNodeClass.amiFamily | quote }}
+  role: {{ required "kubepacsNodeClass.role is required when kubepacsNodeClass.enabled=true" .Values.kubepacsNodeClass.role | quote }}
+  {{- with .Values.kubepacsNodeClass.subnetSelectorTerms }}
+  subnetSelectorTerms:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.kubepacsNodeClass.securityGroupSelectorTerms }}
+  securityGroupSelectorTerms:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.kubepacsNodeClass.amiSelectorTerms }}
+  amiSelectorTerms:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.kubepacsNodeClass.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

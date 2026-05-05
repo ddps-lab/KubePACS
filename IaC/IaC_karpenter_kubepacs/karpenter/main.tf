@@ -1,5 +1,8 @@
-data "aws_ecrpublic_authorization_token" "token" {
-  provider = aws.virginia
+locals {
+  karpenter_chart_path = coalesce(
+    var.chart_path,
+    abspath("${path.module}/../../../KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter"),
+  )
 }
 
 module "karpenter" {
@@ -53,22 +56,25 @@ resource "aws_iam_role_policy_attachment" "karpenter_controller_additional" {
 }
 
 resource "helm_release" "karpenter" {
-  namespace           = "karpenter"
-  create_namespace    = true
-  name                = "karpenter"
-  repository          = "oci://public.ecr.aws/karpenter"
-  chart               = "karpenter"
-  repository_username = data.aws_ecrpublic_authorization_token.token.user_name
-  repository_password = data.aws_ecrpublic_authorization_token.token.password
-  wait                = true
-  version             = "1.4.0"
+  namespace        = "karpenter"
+  create_namespace = true
+  name             = "karpenter"
+  chart            = local.karpenter_chart_path
+  wait             = true
 
   values = [
     <<-EOT
+    imagePullPolicy: Always
     settings:
       clusterName: ${var.cluster_name}
       clusterEndpoint: ${var.cluster_endpoint}
       interruptionQueue: ${module.karpenter.queue_name}
+      kubepacs:
+        enabled: ${var.kubepacs_enabled}
+        strategyAnnotation: ${var.kubepacs_strategy_annotation}
+        strategyValue: ${var.kubepacs_strategy_value}
+        scenarioInstanceLabel: ${var.kubepacs_scenario_instance_label}
+        solverPath: ${var.kubepacs_solver_path}
     serviceAccount:
       annotations:
         eks.amazonaws.com/role-arn: ${module.karpenter.iam_role_arn}
@@ -77,9 +83,39 @@ resource "helm_release" "karpenter" {
     replicas: 1
     controller:
       image:
-        repository: ${var.ecr_repository_url}
-        tag: latest
-      imagePullPolicy: Always
+        repository: ${var.controller_image_repository}
+        tag: ${var.controller_image_tag}
+        digest: "${var.controller_image_digest}"
+      env:
+        - name: AWS_REGION
+          value: ${var.region}
+      extraVolumeMounts:
+        - name: tmp
+          mountPath: /tmp
+    extraVolumes:
+      - name: tmp
+        emptyDir: {}
+    kubepacsNodeClass:
+      enabled: ${var.kubepacs_nodeclass_enabled}
+      name: ${var.kubepacs_nodeclass_name}
+      role: ${module.karpenter.node_iam_role_name}
+      subnetSelectorTerms:
+        - tags:
+            karpenter.sh/discovery: ${var.cluster_name}
+      securityGroupSelectorTerms:
+        - tags:
+            karpenter.sh/discovery: ${var.cluster_name}
+      amiSelectorTerms:
+        - alias: al2023@latest
+    kubepacsNodePool:
+      enabled: ${var.kubepacs_nodepool_enabled}
+      name: ${var.kubepacs_nodepool_name}
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: ${var.kubepacs_nodeclass_name}
+    kubepacsVerification:
+      enabled: ${var.kubepacs_verification_enabled}
     EOT
   ]
 

@@ -6,9 +6,9 @@ WORKDIR /src
 ARG CACHEBUST=1
 RUN echo "Cache bust: $CACHEBUST"
 COPY karpenter-core/ karpenter-core/
-COPY karpenter-provider-aws/ karpenter-fork/
+COPY karpenter-provider-aws/ karpenter-provider-aws/
 
-WORKDIR /src/karpenter-fork
+WORKDIR /src/karpenter-provider-aws
 
 # Download dependencies
 # This will now work because ../karpenter-core exists
@@ -30,7 +30,7 @@ WORKDIR /
 RUN pip install pandas pulp requests boto3 numpy
 
 # Copy the binary
-COPY --from=builder /src/karpenter-fork/controller .
+COPY --from=builder /src/karpenter-provider-aws/controller .
 
 # Copy the Python script and CSV
 # Note: We are copying from the build context (host), not the builder stage, 

@@ -1,0 +1,3 @@
+{{- if and .Values.settings.kubepacs.enabled (eq .Values.controller.image.repository "public.ecr.aws/karpenter/controller") -}}
+{{- fail "settings.kubepacs.enabled requires a KubePACS-enabled controller image, but controller.image.repository points to the upstream Karpenter image. Use ghcr.io/ddps-lab/kubepacs-karpenter-controller or another image built from KubePACS_with_Karpenter/karpenter-provider-aws/Dockerfile." -}}
+{{- end -}}

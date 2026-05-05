@@ -18,7 +18,6 @@ apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
-  name: default
 spec:
   template:
     metadata:

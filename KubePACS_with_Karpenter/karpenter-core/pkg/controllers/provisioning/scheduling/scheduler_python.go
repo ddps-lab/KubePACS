@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -16,10 +17,68 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 )
+
+const (
+	defaultKubepacsStrategyAnnotation    = "kubepacs.io/strategy"
+	defaultKubepacsStrategyValue         = "kubepacs"
+	defaultKubepacsScenarioInstanceLabel = "kubepacs-scenario-instance"
+	defaultKubepacsSolverPath            = "/usr/local/bin/kubepacs_cli.py"
+)
+
 type PythonSolverResult struct {
 	InstanceType     string `json:"instance_type"`
 	AvailabilityZone string `json:"availability_zone"`
 	NumInstances     int    `json:"num_instances"`
+}
+
+func isKubepacsTemplate(nct *NodeClaimTemplate) bool {
+	val, ok := nct.Annotations[kubepacsStrategyAnnotation()]
+	return ok && val == kubepacsStrategyValue()
+}
+
+func podMatchesKubepacsTemplate(p *corev1.Pod, nct *NodeClaimTemplate) bool {
+	if !isKubepacsTemplate(nct) {
+		return false
+	}
+
+	scenarioInstance, ok := nct.Labels[kubepacsScenarioInstanceLabel()]
+	if !ok {
+		return true
+	}
+
+	return p.Spec.NodeSelector != nil && p.Spec.NodeSelector[kubepacsScenarioInstanceLabel()] == scenarioInstance
+}
+
+func kubepacsEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("KUBEPACS_ENABLED"))) {
+	case "false", "0", "no", "off", "disabled":
+		return false
+	default:
+		return true
+	}
+}
+
+func kubepacsStrategyAnnotation() string {
+	return getenvDefault("KUBEPACS_STRATEGY_ANNOTATION", defaultKubepacsStrategyAnnotation)
+}
+
+func kubepacsStrategyValue() string {
+	return getenvDefault("KUBEPACS_STRATEGY_VALUE", defaultKubepacsStrategyValue)
+}
+
+func kubepacsScenarioInstanceLabel() string {
+	return getenvDefault("KUBEPACS_SCENARIO_INSTANCE_LABEL", defaultKubepacsScenarioInstanceLabel)
+}
+
+func kubepacsSolverPath() string {
+	return getenvDefault("KUBEPACS_SOLVER_PATH", defaultKubepacsSolverPath)
+}
+
+func getenvDefault(key, defaultValue string) string {
+	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Results, error) {
@@ -34,23 +93,9 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 		// Check if this pod matches any kubepacs NodePool
 		matchesKubepacs := false
 		for _, nct := range s.nodeClaimTemplates {
-			if val, ok := nct.Annotations["kubepacs.io/strategy"]; !ok || val != "kubepacs" {
-				continue
-			}
-			// Check if pod's requirements are compatible with this kubepacs template
-			// by checking the kubecaps-scenario-instance label
-			if nct.Labels != nil {
-				if scenarioInstance, ok := nct.Labels["kubecaps-scenario-instance"]; ok {
-					// Check pod's nodeSelector or nodeAffinity
-					if p.Spec.NodeSelector != nil {
-						if podScenario, ok := p.Spec.NodeSelector["kubecaps-scenario-instance"]; ok {
-							if podScenario == scenarioInstance {
-								matchesKubepacs = true
-								break
-							}
-						}
-					}
-				}
+			if podMatchesKubepacsTemplate(p, nct) {
+				matchesKubepacs = true
+				break
 			}
 		}
 		if matchesKubepacs {
@@ -108,8 +153,12 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 	avgCPU := totalCPU / float64(len(pods))
 	avgMem := totalMem / float64(len(pods))
 
-	if avgCPU == 0 { avgCPU = 0.1 } // Minimum safety
-	if avgMem == 0 { avgMem = 0.1 }
+	if avgCPU == 0 {
+		avgCPU = 0.1
+	}
+	if avgMem == 0 {
+		avgMem = 0.1
+	}
 
 	// 2. Prepare Allowed Instances List
 	type AllowedInstance struct {
@@ -120,7 +169,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 
 	for _, nct := range s.nodeClaimTemplates {
 		// Only consider templates with the kubepacs strategy
-		if val, ok := nct.Annotations["kubepacs.io/strategy"]; !ok || val != "kubepacs" {
+		if !isKubepacsTemplate(nct) {
 			continue
 		}
 		for _, it := range nct.InstanceTypeOptions {
@@ -132,9 +181,9 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 					})
 				}
 			}
+		}
 	}
-	}
-	
+
 	allowedJson, err := json.Marshal(allowedInstances)
 	if err != nil {
 		return Results{}, fmt.Errorf("failed to marshal allowed instances: %v", err)
@@ -152,7 +201,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 	log.FromContext(ctx).Info("Using AWS region for Python solver", "region", region)
 
 	// 4. Call Python Script
-	cmd := exec.Command("python3", "-u", "/usr/local/bin/kubepacs_cli.py",
+	cmd := exec.Command("python3", "-u", kubepacsSolverPath(),
 		"--pod-count", fmt.Sprintf("%d", len(pods)),
 		"--pod-cpu", fmt.Sprintf("%f", avgCPU),
 		"--pod-mem", fmt.Sprintf("%f", avgMem),
@@ -160,7 +209,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 		"--allowed-instances-file", "-", // Use stdin
 	)
 	cmd.Dir = "/tmp"
-	
+
 	// Pass JSON via Stdin
 	cmd.Stdin = bytes.NewReader(allowedJson)
 
@@ -198,7 +247,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 			// Find template that supports this instance type
 			for _, nct := range s.nodeClaimTemplates {
 				// Only consider templates with the kubepacs strategy
-				if val, ok := nct.Annotations["kubepacs.io/strategy"]; !ok || val != "kubepacs" {
+				if !isKubepacsTemplate(nct) {
 					continue
 				}
 
@@ -237,7 +286,7 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 			// Assign Pods (Greedy)
 			// We need to check capacity, but the python script already did that.
 			// We just fill it up.
-			
+
 			// Calculate capacity for this node
 			podRequest := s.cachedPodData[pods[0].UID].Requests // Use first pod as representative
 			nodeCapacity := chosenIT.Capacity

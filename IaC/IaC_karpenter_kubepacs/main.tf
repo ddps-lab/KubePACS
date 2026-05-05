@@ -3,16 +3,7 @@ provider "aws" {
   region  = var.region
 }
 
-provider "aws" {
-  profile = var.awscli_profile
-  region  = "us-east-1"
-  alias   = "virginia"
-}
-
-
 provider "helm" {
-  version = "2.17.0"
-
   kubernetes {
     host                   = module.eks.cluster_endpoint
     cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)

@@ -1,0 +1,71 @@
+name: Publish KubePACS Helm Chart
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-kubepacs-helm.yaml
+      - KubePACS_with_Karpenter/**
+
+permissions:
+  contents: read
+  packages: write
+  pages: write
+  id-token: write
+
+env:
+  CHART_PATH: KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter
+  CHART_REPO_URL: https://ddps-lab.github.io/KubePACS/charts
+  CONTROLLER_IMAGE: ghcr.io/ddps-lab/kubepacs-karpenter-controller
+  CONTROLLER_TAG: 1.8.1-kubepacs
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: KubePACS_with_Karpenter
+          file: KubePACS_with_Karpenter/karpenter-provider-aws/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.CONTROLLER_IMAGE }}:${{ env.CONTROLLER_TAG }}
+            ${{ env.CONTROLLER_IMAGE }}:latest
+            ${{ env.CONTROLLER_IMAGE }}:sha-${{ github.sha }}
+
+      - uses: azure/setup-helm@v4
+
+      - name: Package chart
+        run: |
+          mkdir -p charts
+          helm package "$CHART_PATH" --destination charts
+          helm repo index charts --url "$CHART_REPO_URL"
+
+      - name: Build Pages artifact
+        run: |
+          mkdir -p site/charts
+          cp charts/* site/charts/
+          cp README.md site/index.md
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

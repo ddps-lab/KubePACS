@@ -110,25 +110,19 @@ tolerations:
   - key: CriticalAddonsOnly
     operator: Exists
 # -- Additional volumes for the pod.
-extraVolumes: []
-# - name: aws-iam-token
-#   projected:
-#     defaultMode: 420
-#     sources:
-#     - serviceAccountToken:
-#         audience: sts.amazonaws.com
-#         expirationSeconds: 86400
-#         path: token
+extraVolumes:
+  - name: tmp
+    emptyDir: {}
 controller:
   # -- Distinguishing container name (containerName: karpenter-controller).
   containerName: controller
   image:
-    # -- Repository path to the controller image.
-    repository: public.ecr.aws/karpenter/controller
-    # -- Tag of the controller image.
-    tag: 1.8.1
-    # -- SHA256 digest of the controller image.
-    digest: sha256:41c28a606cbad86869384ff8ae8345203b63f81612b6fcfd2e136197dccc03ef
+    # -- Repository path to the KubePACS-enabled Karpenter controller image.
+    repository: ghcr.io/ddps-lab/kubepacs-karpenter-controller
+    # -- Tag of the KubePACS-enabled Karpenter controller image.
+    tag: 1.8.1-kubepacs
+    # -- SHA256 digest of the controller image. Leave empty when using a mutable release tag.
+    digest: ""
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -154,10 +148,9 @@ controller:
   #    cpu: 1
   #    memory: 1Gi
   # -- Additional volumeMounts for the controller container.
-  extraVolumeMounts: []
-  # - name: aws-iam-token
-  #   mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
-  #   readOnly: true
+  extraVolumeMounts:
+    - name: tmp
+      mountPath: /tmp
   # -- Additional sidecarContainer config
   sidecarContainer: []
   # -- Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts
@@ -216,6 +209,18 @@ settings:
   disableClusterStateObservability: false
   # -- Disable dry run validation for EC2NodeClasses.
   disableDryRun: false
+  # -- KubePACS custom scheduler integration.
+  kubepacs:
+    # -- Enable the KubePACS Python solver hook. NodePools still opt in with the strategy annotation.
+    enabled: true
+    # -- NodePool template annotation key used to opt in to KubePACS scheduling.
+    strategyAnnotation: kubepacs.io/strategy
+    # -- NodePool template annotation value used to opt in to KubePACS scheduling.
+    strategyValue: kubepacs
+    # -- Optional label key for scenario-specific NodePool and Pod matching.
+    scenarioInstanceLabel: kubepacs-scenario-instance
+    # -- Path to the Python solver inside the controller image.
+    solverPath: /usr/local/bin/kubepacs_cli.py
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features.
   featureGates:
@@ -234,3 +239,57 @@ settings:
     # -- staticCapacity is ALPHA and is disabled by default.
     # Setting this to true will enable static capacity provisioning.
     staticCapacity: false
+
+# -- Optional KubePACS EC2NodeClass managed by this chart.
+kubepacsNodeClass:
+  enabled: false
+  name: default
+  amiFamily: AL2023
+  # -- IAM role name for nodes launched by Karpenter. Required when enabled.
+  role: ""
+  subnetSelectorTerms: []
+  # - tags:
+  #     karpenter.sh/discovery: my-cluster
+  securityGroupSelectorTerms: []
+  # - tags:
+  #     karpenter.sh/discovery: my-cluster
+  amiSelectorTerms:
+    - alias: al2023@latest
+  tags: {}
+
+# -- Optional KubePACS NodePool managed by this chart.
+kubepacsNodePool:
+  enabled: false
+  name: default
+  nodeClassRef:
+    group: karpenter.k8s.aws
+    kind: EC2NodeClass
+    name: default
+  template:
+    metadata:
+      labels: {}
+      annotations: {}
+    spec:
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+  limits:
+    cpu: 1000
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 1m
+
+# -- Optional smoke-test workload managed by this chart.
+kubepacsVerification:
+  enabled: false
+  name: inflate
+  replicas: 5
+  image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
+  resources:
+    requests:
+      cpu: 1
+      memory: 1Gi

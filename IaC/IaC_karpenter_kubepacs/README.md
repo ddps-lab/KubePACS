@@ -10,7 +10,7 @@ KubeCaps는 비용 효율적이고 고가용성을 제공하며 성능이 우수
 
 KubeCaps는 Karpenter의 확장성과 유연성을 활용하여 커스텀 노드 선택 로직을 통합했습니다. 이 섹션에서는 프로젝트 구조의 기술적 배경과 구현 상세를 설명합니다.
 
-### 1. 프로젝트 구조 분리 배경 (`core` vs `fork`)
+### 1. 프로젝트 구조 분리 배경 (`core` vs `provider`)
 
 Karpenter 프로젝트는 원래 클라우드 제공자(AWS, Azure 등)에 구애받지 않는 핵심 로직(`karpenter-core`)과 각 클라우드 제공자별 구현체(`karpenter-provider-aws` 등)로 나뉘어 있었습니다. KubeCaps는 이 구조를 활용하여 다음과 같이 구성되었습니다:
 
@@ -18,7 +18,7 @@ Karpenter 프로젝트는 원래 클라우드 제공자(AWS, Azure 등)에 구�
   - **역할**: Karpenter의 핵심 스케줄링 로직, API 정의, 메트릭 처리 등을 담당합니다.
   - **수정 사항**: 스케줄링 파이프라인(`pkg/controllers/provisioning/scheduling`)에 Python 기반의 외부 솔버를 호출하는 로직(`scheduler_python.go`)이 추가되었습니다. 이는 클라우드 제공자에 종속되지 않는 일반적인 스케줄링 인터페이스를 유지하면서, 내부적으로는 AWS 스팟 가격 데이터를 활용하는 하이브리드 접근 방식을 취합니다.
 
-- **`karpenter-fork`**: 
+- **`KubePACS_with_Karpenter/karpenter-provider-aws`**:
   - **역할**: AWS Cloud Provider 구현체입니다. 실제 EC2 인스턴스 생성, 삭제, AWS API 통신을 담당합니다.
   - **수정 사항**: `karpenter-core`의 수정된 버전을 import하여 사용하도록 `go.mod`가 조정되어 있으며, Docker 빌드 시 이 포크된 버전을 기반으로 컨트롤러 바이너리를 생성합니다.
 
@@ -121,7 +121,7 @@ KubeCaps는 두 개의 Karpenter 저장소를 사용하여 커스터마이징된
    - `kubepacs_cli.py`: 최적화된 노드 선택 알고리즘
    - `aws_coremark_singlecore.csv`: 인스턴스 성능 데이터
 
-2. **karpenter-fork**: AWS Karpenter 포크
+2. **KubePACS_with_Karpenter/karpenter-provider-aws**: AWS Karpenter 포크
    - Go 기반 컨트롤러
    - Python 알고리즘과 통합
 
@@ -136,8 +136,8 @@ KubeCaps는 두 개의 Karpenter 저장소를 사용하여 커스터마이징된
 FROM golang:1.25 AS builder
 WORKDIR /src
 COPY karpenter-core/ karpenter-core/
-COPY karpenter-fork/ karpenter-fork/
-WORKDIR /src/karpenter-fork
+COPY karpenter-provider-aws/ karpenter-provider-aws/
+WORKDIR /src/karpenter-provider-aws
 RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o controller cmd/controller/main.go
 
@@ -145,7 +145,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o controller cmd/controll
 FROM python:3.13-slim
 WORKDIR /
 RUN pip install pandas pulp requests boto3 numpy
-COPY --from=builder /src/karpenter-fork/controller .
+COPY --from=builder /src/karpenter-provider-aws/controller .
 COPY karpenter-core/pkg/controllers/provisioning/scheduling/kubepacs_cli.py /usr/local/bin/kubepacs_cli.py
 COPY karpenter-core/pkg/controllers/provisioning/scheduling/aws_coremark_singlecore.csv /usr/local/bin/aws_coremark_singlecore.csv
 ENTRYPOINT ["/controller"]
@@ -159,7 +159,7 @@ aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS
 
 # 이미지 빌드 (KubeCaps 루트 디렉토리에서 실행)
 cd /Users/taeyoon/Desktop/KubeCaps
-docker build -t karpenter-custom -f karpenter-fork/Dockerfile .
+docker build -t karpenter-custom -f KubePACS_with_Karpenter/karpenter-provider-aws/Dockerfile KubePACS_with_Karpenter
 
 # 태그 및 푸시
 docker tag karpenter-custom:latest 786382940258.dkr.ecr.ap-northeast-2.amazonaws.com/karpenter-custom:latest
@@ -263,7 +263,7 @@ aws ecr get-login-password --region ap-northeast-2 | \
   786382940258.dkr.ecr.ap-northeast-2.amazonaws.com
 
 # 빌드
-docker build -t karpenter-custom -f karpenter-fork/Dockerfile .
+docker build -t karpenter-custom -f KubePACS_with_Karpenter/karpenter-provider-aws/Dockerfile KubePACS_with_Karpenter
 
 # 푸시
 docker tag karpenter-custom:latest \

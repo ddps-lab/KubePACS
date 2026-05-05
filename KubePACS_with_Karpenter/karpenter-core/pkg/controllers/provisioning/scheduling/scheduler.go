@@ -391,10 +391,12 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*corev1.Pod) (Results, err
 
 	// === Python Solver Integration ===
 	usePython := false
-	for _, nct := range s.nodeClaimTemplates {
-		if val, ok := nct.Annotations["kubepacs.io/strategy"]; ok && val == "kubepacs" {
-			usePython = true
-			break
+	if kubepacsEnabled() {
+		for _, nct := range s.nodeClaimTemplates {
+			if isKubepacsTemplate(nct) {
+				usePython = true
+				break
+			}
 		}
 	}
 

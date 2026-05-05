@@ -185,6 +185,18 @@ spec:
             - name: DISABLE_DRY_RUN
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.kubepacs }}
+            - name: KUBEPACS_ENABLED
+              value: "{{ .enabled }}"
+            - name: KUBEPACS_STRATEGY_ANNOTATION
+              value: "{{ tpl (toString .strategyAnnotation) $ }}"
+            - name: KUBEPACS_STRATEGY_VALUE
+              value: "{{ tpl (toString .strategyValue) $ }}"
+            - name: KUBEPACS_SCENARIO_INSTANCE_LABEL
+              value: "{{ tpl (toString .scenarioInstanceLabel) $ }}"
+            - name: KUBEPACS_SOLVER_PATH
+              value: "{{ tpl (toString .solverPath) $ }}"
+          {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
