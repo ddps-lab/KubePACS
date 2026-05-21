@@ -19,7 +19,7 @@ RUN cat ../karpenter-core/pkg/controllers/provisioning/scheduling/scheduler_pyth
 
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o controller cmd/controller/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o controller ./cmd/controller
 
 # Use a Python base image
 FROM --platform=linux/amd64 python:3.11-slim
