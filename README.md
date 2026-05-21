@@ -78,6 +78,23 @@ controller_image_tag        = "1.8.1-kubepacs"
 controller_image_digest     = ""
 ```
 
+## Deploy The Project Website
+
+The frontend under `frontend/` is a static Next.js export deployed to S3 and CloudFront by `.github/workflows/deploy-frontend.yaml`.
+
+On pushes to `main` that change `frontend/**` or the workflow file, GitHub Actions runs:
+
+```sh
+npm ci
+npm run lint
+npm run build
+aws s3 sync frontend/out/_next/static s3://kubepacs.ddps.cloud/_next/static --delete
+aws s3 sync frontend/out s3://kubepacs.ddps.cloud --delete
+aws cloudfront create-invalidation --distribution-id E33W0BVG8FRMS2 --paths "/*"
+```
+
+The workflow expects organization-level AWS secrets named `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optionally `AWS_SESSION_TOKEN`.
+
 ## Regenerate Paper Figures
 
 Figure scripts live in `figures/`. They use Python 3.11+ and `uv`.
