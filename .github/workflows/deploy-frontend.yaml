@@ -11,12 +11,17 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 env:
   AWS_REGION: us-east-1
   FRONTEND_DIR: frontend
   S3_BUCKET: kubepacs.ddps.cloud
   CLOUDFRONT_DISTRIBUTION_ID: E33W0BVG8FRMS2
+  DEPLOY_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
+  DEPLOY_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_KEY }}
+  DEPLOY_AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+  DEPLOY_AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN || secrets.AWS_ROLE_TO_ASSUME }}
 
 jobs:
   deploy:
@@ -42,12 +47,24 @@ jobs:
         working-directory: ${{ env.FRONTEND_DIR }}
         run: npm run build
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS credentials with access keys
+        if: ${{ env.DEPLOY_AWS_ACCESS_KEY_ID != '' && env.DEPLOY_AWS_SECRET_ACCESS_KEY != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-access-key-id: ${{ env.DEPLOY_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.DEPLOY_AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ env.DEPLOY_AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure AWS credentials with OIDC
+        if: ${{ env.DEPLOY_AWS_ROLE_ARN != '' && (env.DEPLOY_AWS_ACCESS_KEY_ID == '' || env.DEPLOY_AWS_SECRET_ACCESS_KEY == '') }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check AWS credentials
+        run: aws sts get-caller-identity
 
       - name: Sync immutable Next assets
         run: |
