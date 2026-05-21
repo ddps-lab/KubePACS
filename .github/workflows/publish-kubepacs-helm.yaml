@@ -17,7 +17,8 @@ permissions:
 
 env:
   CHART_PATH: KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter
-  CHART_REPO_URL: https://ddps-lab.github.io/KubePACS/charts
+  CHART_REPO_URL: https://helm.kubepacs.ddps.cloud/charts
+  PAGES_CUSTOM_DOMAIN: helm.kubepacs.ddps.cloud
   CONTROLLER_IMAGE: ghcr.io/ddps-lab/kubepacs-karpenter-controller
   CONTROLLER_TAG: 1.8.1-kubepacs
 
@@ -62,6 +63,7 @@ jobs:
           mkdir -p site/charts
           cp charts/* site/charts/
           cp README.md site/index.md
+          echo "$PAGES_CUSTOM_DOMAIN" > site/CNAME
 
       - uses: actions/upload-pages-artifact@v3
         with:

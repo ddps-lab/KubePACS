@@ -15,10 +15,10 @@ The project is described in the paper [KubePACS: Kubernetes Cluster Using Perfor
 
 ## Install With Helm
 
-This repository is intended to be publishable as a Helm repository. Once GitHub Pages is enabled for this repo, users can install the chart with:
+This repository is published as a Helm repository at `https://helm.kubepacs.ddps.cloud/charts`. Users can install the chart with:
 
 ```sh
-helm repo add kubepacs https://ddps-lab.github.io/KubePACS/charts
+helm repo add kubepacs https://helm.kubepacs.ddps.cloud/charts
 helm repo update
 helm upgrade --install karpenter kubepacs/karpenter \
   --namespace karpenter \
@@ -57,7 +57,7 @@ To update the packaged Helm repository locally:
 
 ```sh
 helm package KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter --destination charts
-helm repo index charts --url https://ddps-lab.github.io/KubePACS/charts
+helm repo index charts --url https://helm.kubepacs.ddps.cloud/charts
 ```
 
 ## Deploy A Full AWS Environment

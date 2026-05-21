@@ -21,7 +21,7 @@ entries:
           description: NodePool is the Schema for the NodePools API.
     apiVersion: v2
     appVersion: 1.8.1
-    created: "2026-05-05T06:33:10.353431171Z"
+    created: "2026-05-21T10:21:23.680952025Z"
     description: KubePACS-enabled Karpenter controller and optional KubePACS NodeClass/NodePool
       resources for Kubernetes.
     digest: ce2f2eb974ab6b706ed4a50a782a8098eb838c63c549c97aebd8ec0dd122cebf
@@ -38,6 +38,6 @@ entries:
     - https://github.com/ddps-lab/KubePACS
     type: application
     urls:
-    - https://ddps-lab.github.io/KubePACS/charts/karpenter-1.8.1.tgz
+    - https://helm.kubepacs.ddps.cloud/charts/karpenter-1.8.1.tgz
     version: 1.8.1
-generated: "2026-05-05T06:33:10.349512926Z"
+generated: "2026-05-21T10:21:23.678017155Z"
