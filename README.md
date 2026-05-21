@@ -93,7 +93,7 @@ aws s3 sync frontend/out s3://kubepacs.ddps.cloud --delete
 aws cloudfront create-invalidation --distribution-id E33W0BVG8FRMS2 --paths "/*"
 ```
 
-The workflow accepts organization-level AWS secrets named `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (`AWS_ACCESS_KEY` and `AWS_SECRET_KEY` are also supported). Temporary credentials can add `AWS_SESSION_TOKEN`; OIDC deployments can instead provide `AWS_ROLE_ARN` or `AWS_ROLE_TO_ASSUME`.
+The workflow expects organization-level AWS secrets named `HYU_DDPS_AWS_ID` and `HYU_DDPS_AWS_SECRET`. S3 sets `Content-Type` from file extensions during `aws s3 sync`; the workflow verifies the uploaded HTML, CSS, and JavaScript object metadata before invalidating CloudFront.
 
 ## Regenerate Paper Figures
 

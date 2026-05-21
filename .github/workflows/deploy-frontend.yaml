@@ -11,17 +11,12 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 env:
   AWS_REGION: us-east-1
   FRONTEND_DIR: frontend
   S3_BUCKET: kubepacs.ddps.cloud
   CLOUDFRONT_DISTRIBUTION_ID: E33W0BVG8FRMS2
-  DEPLOY_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
-  DEPLOY_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_KEY }}
-  DEPLOY_AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-  DEPLOY_AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN || secrets.AWS_ROLE_TO_ASSUME }}
 
 jobs:
   deploy:
@@ -47,20 +42,11 @@ jobs:
         working-directory: ${{ env.FRONTEND_DIR }}
         run: npm run build
 
-      - name: Configure AWS credentials with access keys
-        if: ${{ env.DEPLOY_AWS_ACCESS_KEY_ID != '' && env.DEPLOY_AWS_SECRET_ACCESS_KEY != '' }}
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ env.DEPLOY_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ env.DEPLOY_AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ env.DEPLOY_AWS_SESSION_TOKEN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Configure AWS credentials with OIDC
-        if: ${{ env.DEPLOY_AWS_ROLE_ARN != '' && (env.DEPLOY_AWS_ACCESS_KEY_ID == '' || env.DEPLOY_AWS_SECRET_ACCESS_KEY == '') }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ env.DEPLOY_AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.HYU_DDPS_AWS_ID }}
+          aws-secret-access-key: ${{ secrets.HYU_DDPS_AWS_SECRET }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Check AWS credentials
@@ -78,6 +64,28 @@ jobs:
             --delete \
             --exclude "_next/static/*" \
             --cache-control "public,max-age=0,must-revalidate"
+
+      - name: Verify S3 content types
+        run: |
+          html_type="$(aws s3api head-object --bucket "$S3_BUCKET" --key index.html --query ContentType --output text)"
+          css_key="$(find "$FRONTEND_DIR/out/_next/static" -name '*.css' -printf '%P\n' | head -n 1)"
+          js_key="$(find "$FRONTEND_DIR/out/_next/static" -name '*.js' -printf '%P\n' | head -n 1)"
+
+          css_type="$(aws s3api head-object --bucket "$S3_BUCKET" --key "_next/static/$css_key" --query ContentType --output text)"
+          js_type="$(aws s3api head-object --bucket "$S3_BUCKET" --key "_next/static/$js_key" --query ContentType --output text)"
+
+          case "$html_type" in
+            text/html*) ;;
+            *) echo "Unexpected Content-Type for index.html: $html_type"; exit 1 ;;
+          esac
+          case "$css_type" in
+            text/css*) ;;
+            *) echo "Unexpected Content-Type for _next/static/$css_key: $css_type"; exit 1 ;;
+          esac
+          case "$js_type" in
+            application/javascript*|text/javascript*) ;;
+            *) echo "Unexpected Content-Type for _next/static/$js_key: $js_type"; exit 1 ;;
+          esac
 
       - name: Invalidate CloudFront
         run: |
