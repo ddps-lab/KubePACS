@@ -14,15 +14,15 @@ WORKDIR /src/karpenter-provider-aws
 # This will now work because ../karpenter-core exists
 RUN go mod download
 
-# DEBUG: Check file content
-RUN cat ../karpenter-core/pkg/controllers/provisioning/scheduling/scheduler_python.go
-
-
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o controller ./cmd/controller
 
 # Use a Python base image
-FROM --platform=linux/amd64 python:3.11-slim
+FROM python:3.11-slim
+
+LABEL org.opencontainers.image.source="https://github.com/ddps-lab/KubePACS"
+LABEL org.opencontainers.image.description="KubePACS-enabled Karpenter AWS provider controller"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 WORKDIR /
 
