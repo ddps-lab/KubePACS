@@ -100,6 +100,8 @@ db.sqlite3-journal
 
 # Flask stuff:
 instance/
+!KubePACS_with_Karpenter/karpenter-provider-aws/pkg/providers/instance/
+!KubePACS_with_Karpenter/karpenter-provider-aws/pkg/providers/instance/**
 .webassets-cache
 
 # Scrapy stuff:
@@ -160,6 +162,8 @@ celerybeat.pid
 .env
 .venv
 env/
+!KubePACS_with_Karpenter/karpenter-core/pkg/utils/env/
+!KubePACS_with_Karpenter/karpenter-core/pkg/utils/env/**
 venv/
 ENV/
 env.bak/
