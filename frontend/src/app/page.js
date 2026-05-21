@@ -50,7 +50,7 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
-            <a href="#" className="group flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-8 py-4 text-[1.05rem] font-semibold text-white shadow-xl shadow-slate-900/10 transition-all hover:-translate-y-1 hover:bg-slate-800 hover:shadow-2xl hover:shadow-slate-900/20 sm:w-auto">
+            <a href="https://arxiv.org/abs/2604.24027" target="_blank" rel="noreferrer" className="group flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-8 py-4 text-[1.05rem] font-semibold text-white shadow-xl shadow-slate-900/10 transition-all hover:-translate-y-1 hover:bg-slate-800 hover:shadow-2xl hover:shadow-slate-900/20 sm:w-auto">
               <svg className="transition-transform group-hover:-translate-y-0.5" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
               Read Paper (PDF)
             </a>
