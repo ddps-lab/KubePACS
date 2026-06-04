@@ -1,0 +1,43 @@
+name: Check Azure Ingestion Monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ATHENA_DATABASE: default
+  ATHENA_TABLE: azure_ingestion_monitor
+  ATHENA_QUERY_TIMEOUT_SECONDS: "300"
+  ATHENA_POLL_INTERVAL_SECONDS: "5"
+  ATHENA_MIN_COUNT: "1"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: python -m pip install boto3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.HYU_DDPS_AWS_ID }}
+          aws-secret-access-key: ${{ secrets.HYU_DDPS_AWS_SECRET }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check Azure ingestion monitor rows
+        env:
+          ATHENA_OUTPUT_LOCATION: ${{ secrets.ATHENA_OUTPUT_LOCATION }}
+          ATHENA_WORKGROUP: ${{ vars.ATHENA_WORKGROUP }}
+        run: python scripts/check_azure_ingestion_monitor.py
