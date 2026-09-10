@@ -250,6 +250,13 @@ terraform.rc
 # End of https://www.toptal.com/developers/gitignore/api/python,terraform,macos
 
 merged_coremark_spotdata_*.csv
+# Preserve recovered historical optimizer inputs for artifact evaluation.
+!/figures/common/library/merged_coremark_spotdata_260221_0419.csv
+!/figures/common/library/merged_coremark_spotdata_260221_0423.csv
+!/figures/common/library/merged_coremark_spotdata_260221_0435.csv
+!/figures/common/library/merged_coremark_spotdata_260221_0439.csv
+!/figures/common/library/merged_coremark_spotdata_260221_0442.csv
+!/figures/common/library/merged_coremark_spotdata_260221_0445.csv
 results/*
 az_mapping.json
 IaC/test/IaC_karpenter_kubepacs_apnorteast1/data.tf
