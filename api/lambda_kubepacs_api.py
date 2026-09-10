@@ -9,10 +9,13 @@ Expected JSON body (POST):
     "pod_mem": 1.0,
     "workload_intensity": "default",       // optional: "default", "network", "disk", "disk_network"
     "region": "us-east-1",                 // required
-    "allowed_instances": [...]             // optional
+    "allowed_instances": [...],            // optional
+    "spot_data_path": "data/latest_aws.json", // optional; defaults to bundled snapshot
+    "spot_data": [...]                     // optional; inline SpotLake snapshot
 }
 """
 
+import gzip
 import json
 import os
 import re
@@ -21,7 +24,6 @@ import warnings
 import boto3
 import numpy as np
 import pandas as pd
-import requests
 from pulp import (
     PULP_CBC_CMD,
     LpMinimize,
@@ -41,6 +43,10 @@ os.chdir("/tmp")
 # ---------------------------------------------------------------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 COREMARK_PATH = os.path.join(SCRIPT_DIR, "aws_coremark_singlecore.csv")
+DEFAULT_SPOT_DATA_PATH = os.environ.get(
+    "KUBEPACS_SPOT_DATA_PATH",
+    os.path.join(SCRIPT_DIR, "data", "latest_aws.json"),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -57,13 +63,50 @@ def fetch_and_cache_az_mapping(region="us-east-1"):
         return {}
 
 
-def get_aws_spot_prices(target_region="us-east-1", allow_arm=True):
-    spot_price_url = "https://d26bk4799jlxhe.cloudfront.net/latest_data/latest_aws.json"
+def _resolve_spot_data_path(spot_data_path):
+    if os.path.isabs(spot_data_path):
+        return spot_data_path
+
+    candidates = [
+        spot_data_path,
+        os.path.join(SCRIPT_DIR, spot_data_path),
+    ]
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return candidates[-1]
+
+
+def _is_gzip_file(path):
+    with open(path, "rb") as f:
+        return f.read(2) == b"\x1f\x8b"
+
+
+def load_spot_data(spot_data=None, spot_data_path=None):
+    if spot_data is not None:
+        if isinstance(spot_data, str):
+            spot_data = json.loads(spot_data)
+        if not isinstance(spot_data, list):
+            raise ValueError("spot_data must be a list of SpotLake records")
+        return spot_data
+
+    resolved_path = _resolve_spot_data_path(spot_data_path or DEFAULT_SPOT_DATA_PATH)
+    if not os.path.exists(resolved_path):
+        raise ValueError(f"Spot data file not found: {resolved_path}")
+
+    opener = gzip.open if resolved_path.endswith(".gz") or _is_gzip_file(resolved_path) else open
+    with opener(resolved_path, "rt", encoding="utf-8") as f:
+        loaded_data = json.load(f)
+
+    if not isinstance(loaded_data, list):
+        raise ValueError(f"Spot data file must contain a list of records: {resolved_path}")
+    return loaded_data
+
+
+def get_aws_spot_prices(target_region="us-east-1", allow_arm=True, spot_data=None, spot_data_path=None):
 
     try:
-        response = requests.get(spot_price_url)
-        response.raise_for_status()
-        spot_data = response.json()
+        spot_data = load_spot_data(spot_data=spot_data, spot_data_path=spot_data_path)
 
         spot_prices = []
         for item in spot_data:
@@ -83,6 +126,8 @@ def get_aws_spot_prices(target_region="us-east-1", allow_arm=True):
                 })
 
         df_spot = pd.DataFrame(spot_prices)
+        if df_spot.empty:
+            return df_spot
 
         df_coremark = pd.read_csv(COREMARK_PATH)
         df_merged = pd.merge(df_spot, df_coremark[["InstanceType", "CoreMark"]], on="InstanceType", how="left")
@@ -120,6 +165,8 @@ def get_aws_spot_prices(target_region="us-east-1", allow_arm=True):
 
         return df_merged
 
+    except ValueError:
+        raise
     except Exception as e:
         print(f"[ERROR] Error getting spot prices: {e}")
         return None
@@ -488,11 +535,18 @@ def lambda_handler(event, context):
         # --- Optional parameters ---
         workload_intensity = params.get("workload_intensity", "default")
         allowed_instances = params.get("allowed_instances")
+        spot_data = params.get("spot_data")
+        spot_data_path = params.get("spot_data_path")
 
-        # --- Fetch spot price data ---
-        df = get_aws_spot_prices(target_region=region, allow_arm=False)
+        # --- Load spot price data from a fixed snapshot ---
+        df = get_aws_spot_prices(
+            target_region=region,
+            allow_arm=False,
+            spot_data=spot_data,
+            spot_data_path=spot_data_path,
+        )
         if df is None:
-            return _make_response(502, {"error": "Failed to fetch spot price data"})
+            return _make_response(502, {"error": "Failed to load spot price data"})
 
         # --- Solve ---
         result = getGoldenNodepool(

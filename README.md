@@ -1,146 +1,108 @@
 # KubePACS
 
-KubePACS is a Kubernetes-native spot instance provisioning system for building node pools that balance performance, availability, and cost. It uses cloud market signals such as spot price, benchmark performance, and availability scores to choose instance types, then integrates the decision into Karpenter so Kubernetes can provision those nodes through the normal autoscaling workflow.
+KubePACS selects Kubernetes spot-instance node pools using performance,
+availability, and cost, and integrates its optimizer into Karpenter.
 
-The project is described in the paper [KubePACS: Kubernetes Cluster Using Performant, Highly Available, and Cost Efficient Spot Instances](https://arxiv.org/abs/2604.24027). A hosted project page is available at [kubepacs.ddps.cloud](https://kubepacs.ddps.cloud/).
+Paper: [KubePACS: Kubernetes Cluster Using Performant, Highly Available, and
+Cost Efficient Spot Instances](https://arxiv.org/abs/2604.24027).
 
-## What Is In This Repository
+## Artifact Evaluation
 
-- `KubePACS_with_Karpenter/`: Karpenter fork with the KubePACS scheduler path and Helm chart.
-- `charts/`: static Helm repository output, including `index.yaml` and packaged chart archives.
-- `IaC/IaC_karpenter_kubepacs/`: Terraform for deploying the EKS/Karpenter/KubePACS environment.
-- `figures/`: scripts and data used to regenerate paper figures.
-- `api/`: API wrapper for the KubePACS optimizer.
-- `frontend/`: project website frontend.
+Requested Middleware 2026 badges: **Artifacts Available**, **Artifacts
+Functional**, and **Results Reproduced**. These are evaluation requests, not
+awarded badges. The submission abstract must request the same badges, following
+the [call for artifacts](https://middleware-conf.github.io/2026/calls/call-for-artifacts/).
 
-## Install With Helm
+Start with figure regeneration: it reprocesses the supplied experimental data
+without AWS credentials. API and EKS workflows are separate functional checks.
 
-This repository is published as a Helm repository at `https://helm.kubepacs.ddps.cloud/charts`. Users can install the chart with:
+| Component | Purpose | Instructions |
+| --- | --- | --- |
+| `figures/` | Regenerate Figures 1, 2, and 5-12; compare reference PDFs | [Figures](figures/README.md) |
+| `api/` | Run the optimizer with packaged input | [API](api/README.md) |
+| `KubePACS_with_Karpenter/` | Build and deploy the modified autoscaler | [Karpenter](KubePACS_with_Karpenter/README.md) |
+| `IaC/IaC_karpenter_kubepacs/` | Provision an AWS/EKS test environment | [Terraform](IaC/IaC_karpenter_kubepacs/README.md) |
+| `charts/` | Packaged Helm distribution | [Charts](charts/README.md) |
+| `frontend/` | Optional project website | [Website](frontend/README.md) |
 
-```sh
-helm repo add kubepacs https://helm.kubepacs.ddps.cloud/charts
-helm repo update
-helm upgrade --install karpenter kubepacs/karpenter \
-  --namespace karpenter \
-  --create-namespace \
-  -f KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter/examples/kubepacs-values.yaml
-```
+Commands start at the repository root unless stated otherwise. Record
+`git rev-parse HEAD` with evaluation results. When evaluating a working copy,
+also retain any uncommitted artifact files.
 
-The chart installs Kubernetes resources into an existing EKS cluster. AWS prerequisites still need to exist: an EKS cluster, controller IAM role, node IAM role, tagged subnets/security groups, and an interruption queue if configured.
+## Quick Start: Figures
 
-The default controller image is:
-
-```text
-ghcr.io/ddps-lab/kubepacs-karpenter-controller:1.8.1-kubepacs
-```
-
-That image is built from `KubePACS_with_Karpenter/karpenter-provider-aws/Dockerfile` and includes:
-
-- the KubePACS-enabled Karpenter controller binary
-- `kubepacs_cli.py`
-- `aws_coremark_singlecore.csv`
-- Python runtime dependencies used by the optimizer
-
-If `settings.kubepacs.enabled=true`, the chart refuses to render with the upstream Karpenter image because that image does not contain KubePACS.
-
-## Publish The Helm Repository
-
-Publishing is handled by `.github/workflows/publish-kubepacs-helm.yaml`.
-
-For public installs, configure GitHub like this:
-
-1. Enable GitHub Pages with deployment from GitHub Actions.
-2. Run the `Publish KubePACS Helm Chart` workflow.
-3. Make the GHCR package `kubepacs-karpenter-controller` public.
-
-To update the packaged Helm repository locally:
+Requirements: Python 3.11, uv, and a Linux environment for the tested workflow.
+Allow approximately 4 GiB free disk for dependencies, a temporary data copy,
+and outputs; this is a planning allowance, not a measured minimum. Supplied
+figure data occupy about 1.1 GiB. No GPU or cloud account is needed. Internet
+access is required to install dependencies, not to generate the figures.
 
 ```sh
-helm package KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter --destination charts
-helm repo index charts --url https://helm.kubepacs.ddps.cloud/charts
+uv sync --locked --project figures
+uv run --locked --project figures python figures/reproduce.py
 ```
 
-## Deploy A Full AWS Environment
+Expected outcome: exit code 0 and `PASS: 16 scripts, 24 PDFs`. Generated PDFs,
+per-script logs, and `summary.json` are placed under `artifact-results/figures/`.
+Reference PDFs are not overwritten. Choose a fresh `--output` directory for
+each subsequent run.
 
-The Terraform environment under `IaC/IaC_karpenter_kubepacs/` creates the supporting AWS/EKS pieces and installs the local Helm chart.
+For reference-image comparison, install Roboto and Poppler (`pdftoppm`):
 
 ```sh
-cd IaC/IaC_karpenter_kubepacs
-terraform init
-terraform apply
+uv run --locked --project figures python figures/reproduce.py \
+  --compare --output artifact-results/figures-comparison
 ```
 
-The IaC defaults to the public KubePACS controller image, but the image can be overridden with:
+See [Figures](figures/README.md) for setup, comparison criteria, individual
+commands, input descriptions, and the paper-to-output mapping.
 
-```hcl
-controller_image_repository = "ghcr.io/ddps-lab/kubepacs-karpenter-controller"
-controller_image_tag        = "1.8.1-kubepacs"
-controller_image_digest     = ""
-```
+## Evaluation Scope
 
-## Deploy The Project Website
+The figure workflow verifies that supplied data and processing scripts produce
+the reported visual results. It does not rerun the historical cloud experiments
+that produced the CSVs. Figures 3 and 4 are architectural illustrations supplied
+as PPTX sources.
 
-The frontend under `frontend/` is a static Next.js export deployed to S3 and CloudFront by `.github/workflows/deploy-frontend.yaml`.
+The API workflow checks an optimizer response. The EKS workflow checks node
+provisioning integration, with logs needed to distinguish KubePACS execution
+from fallback to ordinary Karpenter. The website is not required for evaluation.
 
-On pushes to `main` that change `frontend/**` or the workflow file, GitHub Actions runs:
+A complete, verified end-to-end rerun recipe for every historical simulation,
+graph analytics, I/O, and fault injection experiment is not yet included.
+Table 2 and numerical claims outside the generated figures do not yet have
+dedicated automated acceptance checks. These limits apply to the requested
+Results Reproduced evaluation; plotting stored results must not be reported
+as freshly reproducing every experiment.
 
-```sh
-npm ci
-npm run lint
-npm run build
-aws s3 sync frontend/out/_next/static s3://kubepacs.ddps.cloud/_next/static --delete
-aws s3 sync frontend/out s3://kubepacs.ddps.cloud --delete
-aws cloudfront create-invalidation --distribution-id E33W0BVG8FRMS2 --paths "/*"
-```
+## Verification Status
 
-The workflow expects organization-level AWS secrets named `HYU_DDPS_AWS_ID` and `HYU_DDPS_AWS_SECRET`. S3 sets `Content-Type` from file extensions during `aws s3 sync`; the workflow verifies the uploaded HTML, CSS, and JavaScript object metadata before invalidating CloudFront.
+Figure scripts have been executed with network access blocked. The documented
+reproduction command also passed in a fresh locked Python 3.11 environment:
+16 scripts and 24 reference comparisons, with 20 PDFs pixel-identical and
+four within the documented rasterization tolerance.
+The API has a local AWS-backed smoke test. Helm lint/render checks are
+configuration checks, not proof of a working image or cluster deployment.
+Terraform validation and the optional website lint/static build also passed.
 
-## Regenerate Paper Figures
+Full EKS deployment, fault injection, and end-to-end experiment resource,
+runtime, and cost measurements still require a deployment validation run.
+Cloud resources are billable until removed; deployment READMEs include cleanup.
+No cloud deployment is necessary for plotting.
 
-Figure scripts live in `figures/`. They use Python 3.11+ and `uv`.
+## Distribution And Citation
 
-Install dependencies:
-
-```sh
-cd figures
-uv sync
-```
-
-Regenerate every figure script:
-
-```sh
-cd figures
-find . -name 'figure_*.py' -print0 | sort -z | while IFS= read -r -d '' script; do
-  dir=$(dirname "$script")
-  file=$(basename "$script")
-  (cd "$dir" && uv run python "$file")
-done
-```
-
-Regenerate one figure:
-
-```sh
-cd figures/figure10_exp_k8s_karpenter
-uv run python figure_10.py
-```
-
-The scripts overwrite the generated PDFs in each figure directory. Most figures use checked-in result data.
-
-See [figures/README.md](figures/README.md) for the full figure command list.
-
-## Paper
-
-- Project page: [https://kubepacs.ddps.cloud/](https://kubepacs.ddps.cloud/)
-- Paper: [https://arxiv.org/abs/2604.24027](https://arxiv.org/abs/2604.24027)
-- DOI: [https://doi.org/10.1145/3801927.3810468](https://doi.org/10.1145/3801927.3810468)
-
-Please cite KubePACS as:
+Source: [GitHub](https://github.com/ddps-lab/KubePACS).
+The [website](https://kubepacs.ddps.cloud/) and hosted Helm repository are
+conveniences; evaluate supplied source and data. Record an immutable submission
+revision and archive URL in the final submission. Karpenter license files are
+retained in both fork directories; they do not establish a license for all
+other code and datasets.
 
 ```text
 Taeyoon Kim, Kyumin Kim, Enrique Molina-Giménez, Pedro García-López,
 and Kyungyong Lee. 2026. KubePACS: Kubernetes Cluster Using Performant,
-Highly Available, and Cost Efficient Spot Instances. In 27th International
-Middleware Conference (Middleware ’26), December 14–18, 2026, Tarragona,
-Spain. ACM, New York, NY, USA, 14 pages.
+Highly Available, and Cost Efficient Spot Instances.
+Middleware '26, December 14-18, 2026, Tarragona, Spain. 14 pages.
 https://doi.org/10.1145/3801927.3810468
 ```

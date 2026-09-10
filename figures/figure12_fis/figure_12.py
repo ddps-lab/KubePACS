@@ -25,7 +25,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import boto3
 
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
@@ -37,9 +36,6 @@ COREMARK_CSV = os.path.join(BASE_DIR, '../common/dataset/aws_coremark_singlecore
 
 # Price data
 PRICE_CSV = os.path.join(BASE_DIR, 'data/price.csv')
-
-# AWS Session for CloudTrail
-aws_session = boto3.Session(profile_name='default')
 
 # Visualization settings
 plt.rcParams['font.size'] = 11
@@ -773,7 +769,6 @@ plt.show()
 # 
 
 # In[ ]:
-
 
 
 

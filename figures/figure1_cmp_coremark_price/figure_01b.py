@@ -24,8 +24,7 @@ coremark = pd.read_csv('../common/dataset/aws_coremark_singlecore.csv')
 # In[14]:
 
 
-spot_price_url = "https://d26bk4799jlxhe.cloudfront.net/latest_data/latest_aws.json"
-price_data = pd.read_json(spot_price_url)
+price_data = pd.read_csv('data/prices_bcd.csv.gz')
 price_data
 
 
@@ -201,7 +200,4 @@ plt.show()
 
 
 # In[ ]:
-
-
-
 

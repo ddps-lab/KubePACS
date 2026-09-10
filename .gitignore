@@ -258,6 +258,9 @@ merged_coremark_spotdata_*.csv
 !/figures/common/library/merged_coremark_spotdata_260221_0442.csv
 !/figures/common/library/merged_coremark_spotdata_260221_0445.csv
 results/*
+/artifact-results/
+/docs/artifact-audit.md
+/docs/figure12-audit.md
 az_mapping.json
 IaC/test/IaC_karpenter_kubepacs_apnorteast1/data.tf
 IaC/test/IaC_karpenter_kubepacs_apnorteast1/ecr.tf

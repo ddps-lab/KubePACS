@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Project Website
 
-## Getting Started
+This is the optional KubePACS website, not an experiment runner. Source lives
+under `src/app/`. The project uses Next.js 16.1.6 and React 19.2.3, with a
+static export configured in `next.config.mjs`.
 
-First, run the development server:
+## Development And Build
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Use Node.js 24 (the CI version) and npm. From the repository root:
+
+```sh
+npm --prefix frontend ci
+npm --prefix frontend run lint
+npm --prefix frontend run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Dependency installation and any build-time external assets require network
+access. A successful build exits with code 0 and produces `frontend/out/`.
+This check validates the website build, not KubePACS results.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+The documentation check passed on Node 24.11.1, with one lint warning about
+the image element. Dependency auditing reported vulnerabilities, including
+a critical finding; review `npm audit` before deployment. These were not
+remediated as part of the documentation changes, and a static build pass
+does not imply that development/build dependencies are secure.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+For development:
 
-## Learn More
+```sh
+npm --prefix frontend run dev -- --port 3000
+```
 
-To learn more about Next.js, take a look at the following resources:
+For a local preview of the built static export:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```sh
+python3 -m http.server 3000 --directory frontend/out
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open [the local site](http://localhost:3000). Choose another free port if
+needed; stop the preview with Ctrl-C. Do not use `npm start` for the exported
+site: that package script invokes `next start`, while this project uses
+`output: 'export'`.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deployment uses the [AWS publication workflow](../.github/workflows/deploy-frontend.yaml) and requires
+maintainer credentials. Publication is not part of artifact evaluation and
+must not be necessary to reproduce figures. Generated `out/`, `.next/`,
+and installed `node_modules/` can be removed when no longer needed.

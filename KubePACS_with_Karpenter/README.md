@@ -1,54 +1,127 @@
-# KubePACS with Karpenter
+# KubePACS With Karpenter
 
-This directory packages a KubePACS-enabled Karpenter controller and Helm chart.
+This directory contains the modified Karpenter core, AWS provider, Python
+optimizer, and Helm chart. Commands start at the repository root.
 
-## What Helm Installs
+## Scope And Prerequisites
 
-The chart can install:
+Figure generation does not need this deployment. This workflow tests live
+provisioning integration and creates billable AWS resources. Use a dedicated
+test cluster/account, Docker, AWS CLI, kubectl, and Helm 3. The controller image
+targets Linux AMD64.
 
-- Karpenter controller using the KubePACS custom image
-- KubePACS scheduler settings as controller environment variables
-- Optional `EC2NodeClass`
-- Optional KubePACS-enabled `NodePool`
-- Optional smoke-test workload
+An existing EKS cluster needs controller and node IAM roles, tagged discovery
+subnets/security groups, and an interruption queue when enabled. Alternatively,
+use the [Terraform environment](../IaC/IaC_karpenter_kubepacs/README.md).
+Do not manage the same Helm release with both Terraform and manual Helm.
 
-Helm installs Kubernetes resources into an existing EKS cluster. AWS-side prerequisites still need to exist: an EKS cluster, controller IAM role, node IAM role, tagged subnets/security groups, and an interruption queue if used. By default the chart uses the public KubePACS controller image at `ghcr.io/ddps-lab/kubepacs-karpenter-controller:1.8.1-kubepacs`.
+**Current limitation:** the controller's `kubepacs_cli.py` still fetches its
+SpotLake input from a live CloudFront endpoint. It does not use the API's
+packaged JSON or the figures' local inputs. Endpoint reachability and the
+controller's optimizer path must be validated before claiming this deployment
+is reproducible. A ready controller or ready workload alone is insufficient:
+solver failure can fall back to ordinary Karpenter.
 
-## Build and Push a Custom Controller Image
+## Build And Inspect
 
-```bash
-cd KubePACS_with_Karpenter
-REGION=us-east-1 AWS_PROFILE=default IMAGE_TAG=latest ./deploy_all.sh
+Build locally without publishing or deploying:
+
+```sh
+docker build --platform linux/amd64 -t kubepacs-controller:artifact \
+  -f KubePACS_with_Karpenter/karpenter-provider-aws/Dockerfile \
+  KubePACS_with_Karpenter
+helm lint KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter
 ```
 
-For build-only:
+The build context must include both fork directories because the provider
+uses the sibling core module. The Dockerfile installs unpinned Python
+dependencies; record the image digest and resolved dependencies for evaluation.
+A successful Helm lint is not a container build or deployment test.
 
-```bash
-REGION=us-east-1 AWS_PROFILE=default IMAGE_TAG=latest \
-  ./karpenter-provider-aws/build_and_push.sh
+`karpenter-provider-aws/build_and_push.sh` builds and pushes images, including
+a `latest` tag, and can create an ECR repository. `deploy_all.sh` also deploys.
+Neither is a build-only command.
+
+## Configure And Deploy
+
+Copy the example:
+
+```sh
+cp KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter/examples/kubepacs-values.yaml /tmp/kubepacs-values.yaml
 ```
 
-## Install with Helm
+Replace every placeholder with the target cluster's values. Review controller
+replicas and scheduling: chart defaults require two separate non-Karpenter
+nodes for two controller replicas. A single bootstrap-node test cluster needs
+`replicas: 1`. Review the NodePool's CPU limit (default 1000) against your
+budget. Set `controller.image.repository` and an immutable
+`controller.image.digest` to an image accessible from the cluster. The default
+public tag is a convenience, not proof of correspondence to submitted source.
+Record the resolved AMI as well; the example uses `al2023@latest`.
 
-Copy and edit the example values file:
+Render first, then install only into the intended test cluster:
 
-```bash
-cp karpenter-provider-aws/charts/karpenter/examples/kubepacs-values.yaml /tmp/kubepacs-values.yaml
+```sh
+kubectl config current-context
+helm template karpenter KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter \
+  --namespace karpenter -f /tmp/kubepacs-values.yaml > /tmp/kubepacs-rendered.yaml
+helm upgrade --install karpenter KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter \
+  --namespace karpenter --create-namespace -f /tmp/kubepacs-values.yaml --wait --timeout 10m
 ```
 
-Then install:
-
-```bash
-helm upgrade --install karpenter ./karpenter-provider-aws/charts/karpenter \
-  --namespace karpenter \
-  --create-namespace \
-  -f /tmp/kubepacs-values.yaml
-```
-
-The NodePool opts in to KubePACS with:
+Review the rendered YAML before installing. The chart adds the strategy
+annotation to opted-in NodePools at this location:
 
 ```yaml
-metadata:
-  annotations:
-    kubepacs.io/strategy: kubepacs
+spec:
+  template:
+    metadata:
+      annotations:
+        kubepacs.io/strategy: kubepacs
 ```
+
+## Functional Acceptance
+
+For a Helm-managed dedicated test cluster, enable the optional five-pod
+workload (each pod requests 1 CPU and 1 GiB):
+
+```sh
+helm upgrade karpenter KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter \
+  --namespace karpenter -f /tmp/kubepacs-values.yaml --set kubepacsVerification.enabled=true
+kubectl rollout status deployment/karpenter -n karpenter --timeout=5m
+kubectl get pods -n karpenter -o wide
+kubectl get nodepools,ec2nodeclasses,nodeclaims
+kubectl logs -n karpenter deployment/karpenter --all-pods=true --since=10m
+kubectl get nodes -L node.kubernetes.io/instance-type,topology.kubernetes.io/zone,karpenter.sh/capacity-type
+```
+
+Retain logs, rendered values, image digest, NodeClaims, node labels, and pod
+events. Success requires all of the following:
+
+- Eligible pending pods trigger the opted-in NodePool and Python solver.
+- Logs show `Calling Python solver` and a usable `Python solver output`,
+  without `python solver failed, falling back to default` for that request.
+- New NodeClaims and nodes agree with the resulting allocation, and the test
+  pods become Ready.
+
+If all pods fit existing nodes, the optimizer was not tested. Workload
+readiness after fallback is not KubePACS success. These checks establish
+integration behavior, not the paper's availability/performance improvements.
+End-to-end cluster validation and measured runtime/cost remain pending.
+
+## Cleanup
+
+Disable the Helm-managed test workload using the same values:
+
+```sh
+helm upgrade karpenter KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter \
+  --namespace karpenter -f /tmp/kubepacs-values.yaml --set kubepacsVerification.enabled=false
+```
+
+In the dedicated test cluster, remove the test NodePool while the controller
+is still running and verify its NodeClaims and EC2 instances terminate before
+uninstalling the controller. Do not remove a shared/production NodePool.
+Then uninstall a manually managed release with
+`helm uninstall karpenter -n karpenter`. Helm may retain CRDs; it does not
+remove an independently provisioned EKS cluster, IAM roles, queues, or VPC.
+For Terraform-managed resources, use the Terraform cleanup procedure instead.
