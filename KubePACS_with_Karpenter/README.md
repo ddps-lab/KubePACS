@@ -15,12 +15,18 @@ subnets/security groups, and an interruption queue when enabled. Alternatively,
 use the [Terraform environment](../IaC/IaC_karpenter_kubepacs/README.md).
 Do not manage the same Helm release with both Terraform and manual Helm.
 
-**Current limitation:** the controller's `kubepacs_cli.py` still fetches its
-SpotLake input from a live CloudFront endpoint. It does not use the API's
-packaged JSON or the figures' local inputs. Endpoint reachability and the
-controller's optimizer path must be validated before claiming this deployment
-is reproducible. A ready controller or ready workload alone is insufficient:
-solver failure can fall back to ordinary Karpenter.
+The controller's `kubepacs_cli.py` accepts a local JSON or gzip JSON snapshot
+through `KUBEPACS_SPOT_DATA_PATH` (or `--spot-data-path` for direct CLI use).
+Package or mount the input at an absolute path in the controller container;
+the solver runs from `/tmp`. The API's `data/latest_aws.json` can be reused.
+Build an image containing this CLI revision; the published 1.8.1-kubepacs
+image does not automatically gain changes made in the checkout.
+
+Without a local path the CLI uses the live CloudFront endpoint with a
+30-second request timeout. An explicitly configured missing/invalid file
+fails instead of falling back to live input. Validate the optimizer path:
+a ready controller or ready workload alone is insufficient because solver
+failure can fall back to ordinary Karpenter.
 
 ## Build And Inspect
 

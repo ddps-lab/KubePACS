@@ -11,6 +11,7 @@ module "karpenter" {
 
   cluster_name           = var.cluster_name
   enable_irsa            = true
+  enable_v1_permissions  = true
   irsa_oidc_provider_arn = var.oidc_provider_arn
   iam_role_name          = "${var.prefix}-karpenter-controller-role"
   node_iam_role_name     = "${var.prefix}-karpenter-node-role"

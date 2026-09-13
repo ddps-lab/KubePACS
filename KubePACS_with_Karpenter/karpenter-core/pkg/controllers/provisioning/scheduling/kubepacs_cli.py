@@ -1,4 +1,5 @@
 import argparse
+import gzip
 import json
 import pandas as pd
 from pulp import *
@@ -27,14 +28,27 @@ def fetch_and_cache_az_mapping(region='us-east-1'):
         sys.stderr.write(f"Error fetching AZ mapping: {e}\n")
         return {}
 
-def get_aws_spot_prices(target_region='us-east-1', allow_arm=True):
-    spot_price_url = "https://d26bk4799jlxhe.cloudfront.net/latest_data/latest_aws.json"
-
-    try:
-        response = requests.get(spot_price_url)
+def load_spot_data(spot_data_path=None):
+    path = spot_data_path or os.environ.get('KUBEPACS_SPOT_DATA_PATH')
+    if path:
+        # Use an absolute path: the controller runs the solver from /tmp.
+        opener = gzip.open if path.endswith('.gz') else open
+        with opener(path, 'rt', encoding='utf-8') as source:
+            data = json.load(source)
+    else:
+        response = requests.get(
+            'https://d26bk4799jlxhe.cloudfront.net/latest_data/latest_aws.json',
+            timeout=30,
+        )
         response.raise_for_status()
-        
-        spot_data = response.json()
+        data = response.json()
+    if not isinstance(data, list):
+        raise ValueError('SpotLake input must be a JSON record array')
+    return data
+
+def get_aws_spot_prices(target_region='us-east-1', allow_arm=True, spot_data_path=None):
+    try:
+        spot_data = load_spot_data(spot_data_path)
         
         spot_prices = [] 
         for item in spot_data:
@@ -475,11 +489,12 @@ if __name__ == '__main__':
     parser.add_argument('--pod-cpu', type=float, required=True)
     parser.add_argument('--pod-mem', type=float, required=True)
     parser.add_argument('--region', type=str, default='us-east-1')
+    parser.add_argument('--spot-data-path', help='Local JSON or gzip JSON snapshot; overrides KUBEPACS_SPOT_DATA_PATH')
     parser.add_argument('--allowed-instances-file', type=str, help='Path to JSON file containing allowed instances')
     parser.add_argument('--workload-intensity', type=str, default='default', help='Workload intensity: default, network, disk, disk_network')
     args = parser.parse_args()
 
-    df = get_aws_spot_prices(target_region=args.region, allow_arm=False)
+    df = get_aws_spot_prices(target_region=args.region, allow_arm=False, spot_data_path=args.spot_data_path)
     if df is None:
         sys.exit(1)
 
