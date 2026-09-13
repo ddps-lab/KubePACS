@@ -1,21 +1,19 @@
 # Paper Figures
 
-This directory contains local inputs, plotting scripts, and reference PDFs.
-The workflow reprocesses supplied results; it does not launch AWS experiments.
+This directory contains stored experimental results, plotting scripts, and
+reference PDFs. To avoid the cost and setup effort of running AWS experiments,
+the scripts regenerate the figures locally from the supplied data.
 All commands below start at the repository root.
 
 ## Environment
 
-Use Python 3.11 and uv with the supplied `uv.lock`. Reference-image comparison
-also requires Roboto and Poppler. On Ubuntu/Debian:
+Use Python 3.11 and uv with the supplied `uv.lock`:
 
 ```sh
-sudo apt-get install fonts-roboto poppler-utils
 uv sync --locked --project figures
 ```
 
-Other systems can use their own font and Poppler packages; the reference
-comparison has been checked on Linux. Allow about 4 GiB free disk for
+The workflow has been checked on Linux. Allow about 4 GiB free disk for
 dependencies and the temporary copy. No GPU or AWS credentials are needed.
 Dependency installation needs internet access; execution uses local files.
 
@@ -23,7 +21,7 @@ Dependency installation needs internet access; execution uses local files.
 
 ```sh
 uv run --locked --project figures python figures/reproduce.py \
-  --compare --output artifact-results/figures
+  --output artifact-results/figures
 ```
 
 The output directory must not exist and must be outside `figures/`.
@@ -36,14 +34,9 @@ Success is exit code 0 and `PASS: 16 scripts, 24 PDFs`. Check:
 
 - `summary.json`: each script has exit code 0 and each PDF has `pass: true`.
 - Output subdirectories contain PDFs and one `.log` per executed script.
-- With `--compare`, page counts and rendered dimensions match and no RGB
-  channel differs by more than 8 out of 255 at 200 DPI. This small tolerance
-  accommodates observed rasterization differences. `exact_pixels` separately
-  reports strict pixel equality.
 
-Omitting `--compare` checks execution and output presence only, not agreement.
-Image comparison is not a statistical test of the scientific claims; inspect
-plots and metric definitions alongside the paper.
+These checks verify execution and output presence, not numerical agreement
+with the paper. Inspect plots and metric definitions alongside the paper.
 
 ## Individual Commands And Outputs
 
@@ -101,9 +94,7 @@ by the plotting workflow and have separate AWS/dependency requirements.
 ## Troubleshooting And Cleanup
 
 - Missing CSV: preserve the repository layout rather than copying a script alone.
-- Font/layout mismatch: install Roboto and rerun with a fresh output directory.
 - Nonzero exit: inspect the corresponding log; missing PDFs fail the run.
-- Comparison failure: inspect both PDFs before changing any inputs.
 - Existing output directory: choose a new path to retain earlier evidence.
 
 Remove only the chosen output run directory after inspection to reclaim space.
