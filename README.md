@@ -8,12 +8,12 @@ Cost Efficient Spot Instances](https://arxiv.org/abs/2604.24027).
 
 ## Artifact Evaluation
 
-Start with figure regeneration: it reprocesses the supplied experimental data
+Start with figure and table regeneration: it reprocesses the supplied experimental data
 without AWS credentials. API and EKS workflows are separate functional checks.
 
 | Component | Purpose | Instructions |
 | --- | --- | --- |
-| `figures/` | Regenerate Figures 1, 2, and 5-12 | [Figures](figures/README.md) |
+| `figures/` | Regenerate Figures 1, 2, and 5-12 and Tables 2-3 | [Figures and Tables](figures/README.md) |
 | `api/` | Run the optimizer with packaged input | [API](api/README.md) |
 | `KubePACS_with_Karpenter/` | Build and deploy the modified autoscaler | [Karpenter](KubePACS_with_Karpenter/README.md) |
 | `IaC/IaC_karpenter_kubepacs/` | Provision an AWS/EKS test environment | [Terraform](IaC/IaC_karpenter_kubepacs/README.md) |
@@ -45,6 +45,26 @@ each subsequent run.
 See [Figures](figures/README.md) for setup, output checks, individual
 commands, input descriptions, and the paper-to-output mapping.
 
+Regenerate Table 2 from stored results with no additional dependencies:
+
+```sh
+python3 figures/table2_alpha/table_02.py
+```
+
+Success is `PASS: Table 2, 240 samples per configuration`. CSV, Markdown,
+and LaTeX outputs are written to `artifact-results/table2/`. The command checks
+all five values against the paper at four decimal places. See
+[Table 2](figures/README.md#table-2) for the inputs and aggregation method.
+
+Generate Table 3 from the recorded workload measurements and prices:
+
+```sh
+python3 figures/table3_compute/table_03.py
+```
+
+Success is `PASS: Table 3`. CSV, Markdown, and LaTeX outputs are written to
+`artifact-results/table3/`. See [Table 3](figures/README.md#table-3).
+
 ## Reproducing Results
 
 Running experiments on AWS requires cloud resources, setup time, and usage
@@ -53,6 +73,7 @@ results and scripts for regenerating the paper's figures locally. The figure
 workflow reads these supplied results, processes the data, and generates PDFs
 without an AWS account or a running Kubernetes cluster. Figures 3 and 4 are
 architectural illustrations supplied as PPTX sources.
+Table 2 is regenerated locally from stored allocation and alpha-sweep results.
 
 The API workflow checks an optimizer response. The EKS workflow checks
 **KubePACS** node provisioning, with logs needed to distinguish KubePACS execution

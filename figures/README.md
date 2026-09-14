@@ -1,8 +1,9 @@
-# Paper Figures
+# Paper Figures And Tables
 
 This directory contains stored experimental results, plotting scripts, and
 reference PDFs. To avoid the cost and setup effort of running AWS experiments,
 the scripts regenerate the figures locally from the supplied data.
+Tables 2 and 3 also have local generation commands described below.
 All commands below start at the repository root.
 
 ## Environment
@@ -37,6 +38,57 @@ Success is exit code 0 and `PASS: 16 scripts, 24 PDFs`. Check:
 
 These checks verify execution and output presence, not numerical agreement
 with the paper. Inspect plots and metric definitions alongside the paper.
+
+## Table 2
+
+```sh
+python3 figures/table2_alpha/table_02.py --output artifact-results/table2
+```
+
+This command uses only the Python standard library. Choose a new output
+directory outside `figures/`; no AWS access or experiment execution is needed.
+
+Inputs are the 12 runs of 20 scenarios in `figure6_search_best_alpha/aws/data/`:
+`golden_section_summary.csv`, `greedy_summary.csv`, and
+`specific_result/result_<pods>_<cpu>_<mem>.csv`. The supplemental
+`table2_alpha/data/alpha1.csv` contains the alpha=1 measurements extracted from
+the original experiment's sweep CSVs. The existing Figure 6 inputs are unchanged.
+
+For each run and scenario, the script computes
+`E_Total = performance / (cost * actual_pods)`, divides each configuration's
+value by the GSS value for that same run and scenario, and takes the arithmetic
+mean of these 240 ratios. It does not take a ratio of aggregate means.
+
+Success is exit code 0 and `PASS: Table 2, 240 samples per configuration`.
+Missing or duplicate samples, invalid metrics, and disagreement with the
+paper at four decimal places fail the command.
+
+| Configuration | Normalized E_Total |
+| --- | ---: |
+| Greedy | 0.8616 |
+| alpha=0 | 0.9563 |
+| alpha=0.5 | 0.0006 |
+| alpha=1 | 0.0001 |
+| Ours (GSS) | 1.0000 |
+
+GSS is the normalization reference. Lower values indicate lower efficiency
+relative to GSS under the same input conditions.
+
+Outputs: `table2.csv` (unrounded means and sample counts), `table2.md` and
+`table2.tex` (four-decimal presentation), and `table2_details.csv` (1,200
+per-configuration, per-run, per-scenario normalized values).
+
+## Table 3
+
+```sh
+python3 figures/table3_compute/table_03.py --output artifact-results/table3
+```
+
+The script includes the recorded compilation and video-encoding throughput
+and instance prices. It generates `table3.csv`, `table3.md`, and `table3.tex`,
+including the Best Case row. Only the Python standard library is needed;
+no AWS access is required. Choose a new output directory outside `figures/`.
+Success is exit code 0 and `PASS: Table 3`.
 
 ## Individual Commands And Outputs
 
