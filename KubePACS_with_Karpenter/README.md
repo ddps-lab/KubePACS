@@ -113,7 +113,7 @@ events. Success requires all of the following:
 If all pods fit existing nodes, the optimizer was not tested. Workload
 readiness after fallback is not KubePACS success. These checks establish
 integration behavior, not the paper's availability/performance improvements.
-End-to-end cluster validation and measured runtime/cost remain pending.
+KubePACS node provisioning has been functionally checked on EKS.
 
 ## Cleanup
 

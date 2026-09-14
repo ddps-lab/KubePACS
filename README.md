@@ -8,6 +8,9 @@ Cost Efficient Spot Instances](https://arxiv.org/abs/2604.24027).
 
 ## Artifact Evaluation
 
+See the [Artifact Appendix](docs/artifact_appendix.pdf) for an overview of the
+artifact, requirements, and evaluation workflows.
+
 Start with figure and table regeneration: it reprocesses the supplied experimental data
 without AWS credentials. API and EKS workflows are separate functional checks.
 
@@ -84,7 +87,8 @@ from fallback to ordinary Karpenter. The website is not required for evaluation.
 Figure scripts have been executed with network access blocked. The documented
 reproduction command also passed in a fresh locked Python 3.11 environment:
 16 scripts generated all 24 expected PDFs.
-The API has a local AWS-backed smoke test. Helm lint/render checks are
+The API has a local AWS-backed smoke test. KubePACS node provisioning has
+been functionally checked on EKS. Helm lint/render checks are
 configuration checks, not proof of a working image or cluster deployment.
 Terraform validation and the optional website lint/static build also passed.
 

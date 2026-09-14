@@ -32,8 +32,9 @@ experiment settings, not production defaults. Restrict them for your approved
 test environment before applying. A unique prefix does not isolate the
 fixed-name ECR repository. Review existing resources and naming conflicts.
 
-Cloud provisioning and measured runtime/cost have not been validated for this
-submission. Verify regional EKS version availability, service quotas, instance
+KubePACS node provisioning has been functionally checked on EKS. Review the
+configuration for your target environment before deployment. Verify regional
+EKS version availability, service quotas, instance
 availability, and a spending limit before use. EKS, EC2, storage, public IPv4,
 and other services remain billable until removed. The controller's live input
 dependency is described in [Karpenter](../../KubePACS_with_Karpenter/README.md);
