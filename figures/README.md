@@ -5,13 +5,16 @@ reference PDFs. To avoid the cost and setup effort of running AWS experiments,
 the scripts regenerate the figures locally from the supplied data.
 Tables 2 and 3 also have local generation commands described below.
 All commands below start at the repository root.
+The [local optimizer check](common/library/README.md#local-optimizer-check)
+also exercises instance selection with different pod requirements.
 
 ## Environment
 
-Use Python 3.11 and uv with the supplied `uv.lock`:
+Follow the [uv and Python installation](../README.md#install-uv-and-python)
+instructions, then use Python 3.11 with the supplied `uv.lock`:
 
 ```sh
-uv sync --locked --project figures
+uv sync --locked --project figures --python 3.11
 ```
 
 The workflow has been checked on Linux. Allow about 4 GiB free disk for
@@ -42,7 +45,7 @@ with the paper. Inspect plots and metric definitions alongside the paper.
 ## Table 2
 
 ```sh
-python3 figures/table2_alpha/table_02.py --output artifact-results/table2
+uv run --locked --project figures python figures/table2_alpha/table_02.py --output artifact-results/table2
 ```
 
 This command uses only the Python standard library. Choose a new output
@@ -81,7 +84,7 @@ per-configuration, per-run, per-scenario normalized values).
 ## Table 3
 
 ```sh
-python3 figures/table3_compute/table_03.py --output artifact-results/table3
+uv run --locked --project figures python figures/table3_compute/table_03.py --output artifact-results/table3
 ```
 
 The script includes the recorded compilation and video-encoding throughput

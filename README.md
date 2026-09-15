@@ -11,12 +11,20 @@ Cost Efficient Spot Instances](https://arxiv.org/abs/2604.24027).
 See the [Artifact Appendix](docs/artifact_appendix.pdf) for an overview of the
 artifact, requirements, and evaluation workflows.
 
-Start with figure and table regeneration: it reprocesses the supplied experimental data
-without AWS credentials. API and EKS workflows are separate functional checks.
+The evaluation workflow runs the optimizer with stored inputs and regenerates
+Figures 1, 2, and 5-12 and Tables 2-3 on a local machine. It requires no AWS
+account, Kubernetes cluster, or cloud deployment.
+
+Requested badges: **Artifacts Available**, **Artifacts Functional**, and
+**Results Reproduced**.
+
+The optimizer check varies pod requirements and reports instance recommendations.
+The figure and table workflows process the supplied experimental results.
 
 | Component | Purpose | Instructions |
 | --- | --- | --- |
 | `figures/` | Regenerate Figures 1, 2, and 5-12 and Tables 2-3 | [Figures and Tables](figures/README.md) |
+| `figures/common/library/` | Run the optimizer on stored inputs | [Local Optimizer Check](figures/common/library/README.md#local-optimizer-check) |
 | `api/` | Run the optimizer with packaged input | [API](api/README.md) |
 | `KubePACS_with_Karpenter/` | Build and deploy the modified autoscaler | [Karpenter](KubePACS_with_Karpenter/README.md) |
 | `IaC/IaC_karpenter_kubepacs/` | Provision an AWS/EKS test environment | [Terraform](IaC/IaC_karpenter_kubepacs/README.md) |
@@ -27,16 +35,44 @@ Commands start at the repository root unless stated otherwise. Record
 `git rev-parse HEAD` with evaluation results. When evaluating a working copy,
 also retain any uncommitted artifact files.
 
-## Quick Start: Figures
+## Install uv And Python
+
+Use a Linux terminal with Git and curl installed. On Ubuntu or Debian:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y git curl ca-certificates
+```
+
+Install uv using its [official installer](https://docs.astral.sh/uv/getting-started/installation/),
+add the default installation directory to the current shell, and install Python:
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv --version
+uv python install 3.11
+```
+
+If `uv` is not found in a later terminal, reopen the terminal or repeat the
+`export PATH` command. Python is managed by uv without changing system Python.
+
+## Quick Start: Figures And Tables
 
 Requirements: Python 3.11, uv, and a Linux environment for the tested workflow.
 Allow approximately 4 GiB free disk for dependencies, a temporary data copy,
 and outputs; this is a planning allowance, not a measured minimum. Supplied
 figure data occupy about 1.1 GiB. No GPU or cloud account is needed. Internet
-access is required to install dependencies, not to generate the figures.
+access is required to obtain the repository and install dependencies, not to
+generate the results. After the setup above, obtain the repository:
 
 ```sh
-uv sync --locked --project figures
+git clone https://github.com/ddps-lab/KubePACS.git
+cd KubePACS
+```
+
+```sh
+uv sync --locked --project figures --python 3.11
 uv run --locked --project figures python figures/reproduce.py
 ```
 
@@ -51,7 +87,7 @@ commands, input descriptions, and the paper-to-output mapping.
 Regenerate Table 2 from stored results with no additional dependencies:
 
 ```sh
-python3 figures/table2_alpha/table_02.py
+uv run --locked --project figures python figures/table2_alpha/table_02.py
 ```
 
 Success is `PASS: Table 2, 240 samples per configuration`. CSV, Markdown,
@@ -62,11 +98,29 @@ all five values against the paper at four decimal places. See
 Generate Table 3 from the recorded workload measurements and prices:
 
 ```sh
-python3 figures/table3_compute/table_03.py
+uv run --locked --project figures python figures/table3_compute/table_03.py
 ```
 
 Success is `PASS: Table 3`. CSV, Markdown, and LaTeX outputs are written to
 `artifact-results/table3/`. See [Table 3](figures/README.md#table-3).
+
+## Local Optimizer Check
+
+Follow the [local optimizer command](figures/common/library/README.md#local-optimizer-check)
+to run the existing optimizer on the supplied price, availability, hardware,
+and benchmark inputs. The three scenarios request 10 pods at 1 vCPU/2 GiB,
+50 pods at 2 vCPU/4 GiB, and 100 pods at 1 vCPU/8 GiB per pod.
+
+The `figures/common/library/check_optimizer.py` script accepts repeated
+`--case PODS,VCPU,GIB` arguments for custom requests and a fresh `--output`
+directory for each run. The merged CSV and AZ mapping are included in Git.
+
+Success is `PASS: 3 local optimizer scenarios`, three scenario JSON reports,
+and `summary.json` in `artifact-results/optimizer/`. Inspect the selected instance types, zone names,
+instance counts, estimated hourly cost, performance score, and pod capacity.
+The command checks that each allocation covers the requested pod count and
+respects the stored per-candidate availability limits. It reads both the
+merged input CSV and AZ mapping locally.
 
 ## Reproducing Results
 
@@ -77,24 +131,15 @@ workflow reads these supplied results, processes the data, and generates PDFs
 without an AWS account or a running Kubernetes cluster. Figures 3 and 4 are
 architectural illustrations supplied as PPTX sources.
 Table 2 is regenerated locally from stored allocation and alpha-sweep results.
+Table 3 summarizes recorded workload throughput and instance prices.
 
-The API workflow checks an optimizer response. The EKS workflow checks
-**KubePACS** node provisioning, with logs needed to distinguish KubePACS execution
-from fallback to ordinary Karpenter. The website is not required for evaluation.
+Collect the generated PDFs, table files, and figure runner's `summary.json`
+from `artifact-results/`. Compare them with the paper and supplied reference
+PDFs using the metric definitions in [Figures and Tables](figures/README.md#inputs-and-interpretation).
+The figure runner checks successful execution and output presence. Table 2
+also checks the reported values at four decimal places.
 
-## Verification Status
-
-Figure scripts have been executed with network access blocked. The documented
-reproduction command also passed in a fresh locked Python 3.11 environment:
-16 scripts generated all 24 expected PDFs.
-The API has a local AWS-backed smoke test. KubePACS node provisioning has
-been functionally checked on EKS. Helm lint/render checks are
-configuration checks, not proof of a working image or cluster deployment.
-Terraform validation and the optional website lint/static build also passed.
-
-AWS deployment is optional for figure generation. When using the deployment
-workflow, cloud resources are billable until removed; the deployment READMEs
-include cleanup instructions.
+Inspect the optimizer JSON reports alongside the regenerated figures and tables.
 
 ## Distribution And Citation
 

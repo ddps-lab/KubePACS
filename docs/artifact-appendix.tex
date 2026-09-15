@@ -1,0 +1,206 @@
+\documentclass[sigconf,9pt,nonacm,balance=false]{acmart}
+
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xurl}
+\IfFileExists{libertine.sty}{}{\usepackage[T1]{fontenc}\usepackage{lmodern}}
+\urlstyle{tt}
+\settopmatter{printacmref=false,authorsperrow=3}
+\setlist[itemize]{leftmargin=*,nosep}
+\lstset{basicstyle=\ttfamily\footnotesize,columns=fullflexible,
+  keepspaces=true,breaklines=true,showstringspaces=false,
+  aboveskip=5pt,belowskip=5pt}
+\newcommand{\repo}{https://github.com/ddps-lab/KubePACS}
+\newcommand{\pathcode}[1]{\nolinkurl{#1}}
+
+\begin{document}
+
+\title[Artifact Appendix for KubePACS]{Artifact Appendix for KubePACS:
+Kubernetes Cluster Using Performant, Highly Available,
+and Cost Efficient Spot Instances}
+
+\author{Taeyoon Kim}
+\authornote{Both authors contributed equally to this work.}
+\email{tykim7@hanyang.ac.kr}
+\orcid{0009-0003-0705-0713}
+\affiliation{\department{Dept. of Data Science}
+  \institution{Hanyang University}\city{Seoul}\country{Republic of Korea}}
+\author{Kyumin Kim}
+\authornotemark[1]
+\email{okkimok123@hanyang.ac.kr}
+\orcid{0009-0007-2705-1122}
+\affiliation{\department{Dept. of Data Science}
+  \institution{Hanyang University}\city{Seoul}\country{Republic of Korea}}
+\author{Enrique Molina-Gim\'enez}
+\email{enrique.molina@urv.cat}
+\orcid{0009-0005-2597-3815}
+\affiliation{\department{Dept. of Computer Eng. and Math.}
+  \institution{Universitat Rovira i Virgili}\city{Tarragona}\country{Spain}}
+\author{Pedro Garc\'ia-L\'opez}
+\email{pedro.garcia@urv.cat}
+\orcid{0000-0002-9848-1492}
+\affiliation{\department{Dept. of Computer Eng. and Math.}
+  \institution{Universitat Rovira i Virgili}\city{Tarragona}\country{Spain}}
+\author{Kyungyong Lee}
+\authornote{Corresponding author.}
+\email{kyungyong@hanyang.ac.kr}
+\orcid{0000-0003-0312-4386}
+\affiliation{\department{Dept. of Data Science}
+  \institution{Hanyang University}\city{Seoul}\country{Republic of Korea}}
+
+\renewcommand{\shortauthors}{Kim et al.}
+\begin{abstract}
+This artifact accompanies KubePACS, a Kubernetes-native spot-instance
+provisioning system that jointly considers hardware performance, spot
+pricing, and multi-node availability. It provides the optimizer,
+Kubernetes integration sources, stored experimental results,
+and scripts for generating the paper's figures and tables. To minimize cloud
+cost and setup effort, evaluation runs the optimizer on stored inputs and
+generates figures and tables from the supplied results locally. We request the
+\emph{Artifacts Available}, \emph{Artifacts Functional}, and
+\emph{Results Reproduced} badges.
+\end{abstract}
+\maketitle
+
+\section{Artifact Check-List}
+\begin{itemize}
+  \item \textbf{Programs:} Python analysis and result-generation scripts with
+    accompanying optimizer and Kubernetes integration sources.
+  \item \textbf{Software:} Python 3.11 and \texttt{uv} for figures, using the
+    supplied lock file. The optimizer check adds PuLP~2.9.0 and
+    requests~2.32.5. Table generation uses the Python standard library.
+  \item \textbf{Run-time environment:} Linux workstation for local analysis.
+    Internet access for repository retrieval and dependency installation.
+  \item \textbf{Hardware:} General-purpose CPU. No GPU required for local
+    result generation.
+  \item \textbf{Disk space:} Approximately 4 GiB for the local figure workflow,
+    including dependencies, temporary inputs, and generated outputs.
+  \item \textbf{Execution time:} Allow several minutes for all figures.
+    Each plotting script has a 180-second timeout. Allow several additional
+    minutes for the optimizer check.
+  \item \textbf{Outputs:} 24 figure PDFs and Tables 2 and 3 in CSV, Markdown,
+    and LaTeX. Optimizer recommendations are saved as three JSON reports.
+    Figure execution logs and a machine-readable summary are also provided.
+  \item \textbf{Access:} Source, data, and instructions at \url{\repo}.
+\end{itemize}
+
+\section{Description}
+\subsection{Access and Structure}
+The repository is the entry point for installation and evaluation. Commands
+in this appendix start at its root.
+\begin{lstlisting}
+KubePACS/
+|-- README.md
+|-- figures/
+|   |-- reproduce.py
+|   |-- figure*/
+|   |-- table2_alpha/
+|   +-- table3_compute/
++-- api/
+\end{lstlisting}
+
+\subsection{Software and Data}
+\textbf{Optimizer and integration.}
+The optimizer combines integer linear programming with Golden Section
+Search to select instance types, availability zones, and node counts.
+The \pathcode{api/} directory exposes this implementation through a Lambda
+handler that can also be invoked locally. Kubernetes integration sources
+are also supplied.
+
+\textbf{Experimental inputs.}
+The \pathcode{figures/} directory contains benchmark data, stored simulation
+and application results, plotting scripts, and reference PDFs. Historical
+price inputs are supplied locally, so figure generation does not query live
+market data. Table~2 aggregates allocation and alpha-sweep results, including
+the supplied alpha=1 records. Table~3 uses the recorded compilation and video
+encoding throughput and instance prices. Figures~3 and~4 are architectural
+illustrations supplied as PPTX sources. Table~1 defines mathematical notation.
+
+\section{Relationship to the Paper}
+The artifact connects the paper's claims to implementations and stored
+results as follows. Figure and table numbers below refer to the main paper.
+\begin{itemize}
+  \item \textbf{Cost--performance optimization:} benchmark and price
+    comparisons and baseline evaluations in Figures~1, 5, and~10.
+  \item \textbf{Multi-node availability:} recorded request fulfillment
+    and availability indicators in Figures~2 and~9.
+  \item \textbf{Adaptive optimization:} alpha sensitivity, search overhead,
+    and configuration comparisons in Figures~6--7 and Table~2.
+  \item \textbf{Workload-aware selection:} specialized instance selection
+    in Figure~8.
+  \item \textbf{Application efficiency:} recorded infrastructure metrics,
+    graph-analytics execution times, and compute-workload comparisons in
+    Figures~10--11 and Table~3.
+\end{itemize}
+The local scripts generate Figures~1, 2, and~5--12 and Tables~2--3
+from the supplied experimental results.
+
+\section{Installation and Execution}
+\subsection{Local Figure and Table Generation}
+Install Git and curl on Linux. Install \texttt{uv} and Python~3.11,
+then obtain the repository and run:
+\begin{lstlisting}
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv python install 3.11
+git clone https://github.com/ddps-lab/KubePACS.git
+cd KubePACS
+uv sync --locked --project figures --python 3.11
+uv run --locked --project figures \
+  python figures/reproduce.py
+uv run --locked --project figures \
+  python figures/table2_alpha/table_02.py
+uv run --locked --project figures \
+  python figures/table3_compute/table_03.py
+\end{lstlisting}
+Dependency installation requires Internet access. The generation commands
+then operate on local inputs.
+Choose a new \texttt{-{}-output} directory for subsequent runs.
+
+\textbf{Data processing and collection.}
+The figure runner executes 16 scripts in a temporary input copy, leaving
+reference files unchanged. It collects PDFs, per-script logs, and
+\pathcode{summary.json} under \pathcode{artifact-results/figures/}.
+Table outputs are collected under \pathcode{artifact-results/table2/} and
+\pathcode{artifact-results/table3/}. The table commands emit
+\pathcode{table2.csv/.md/.tex} and \pathcode{table3.csv/.md/.tex}. Table~2 also
+emits \pathcode{table2_details.csv} with 1,200 normalized observations.
+
+\textbf{Expected outputs.}
+The figure command exits with code~0 and reports
+\texttt{PASS: 16 scripts, 24 PDFs}. The summary lists script exit codes and
+output-presence checks. The table commands report \texttt{PASS: Table 2}
+and \texttt{PASS: Table 3}. Table~2 checks all five rounded values against the
+paper: 0.8616, 0.9563, 0.0006, 0.0001, and 1.0000 for Greedy, alpha=0,
+alpha=0.5, alpha=1, and GSS, respectively.
+
+\textbf{Interpretation.}
+Compare generated plots with the supplied references using the metric
+definitions and figure-by-figure mapping in \pathcode{figures/README.md}.
+Table~2 normalizes each configuration's efficiency to GSS for the same run
+and scenario, then averages 240 ratios per configuration. Table~3 summarizes
+the two compute workloads and their cost and throughput comparisons.
+The local workflow reprocesses stored experimental results for generation
+and inspection of the figures and tables.
+
+\subsection{Local Optimizer Check}
+Run \pathcode{figures/common/library/check_optimizer.py} using the command
+in its accompanying README to invoke \texttt{getGoldenNodepool} with the
+supplied merged CSV and cached AZ mapping. Both input files are included
+in the repository.
+These files provide prices, availability limits, hardware specifications,
+benchmark scores, and zone names. The command uses the existing optimizer
+with three requirements: 10 pods at 1 vCPU and 2 GiB per pod, 50 pods at
+2 vCPU and 4 GiB, and 100 pods at 1 vCPU and 8 GiB.
+
+Use repeated \texttt{-{}-case PODS,VCPU,GIB} arguments to supply different
+requirements and \texttt{-{}-output} to select a fresh output directory.
+Success is \texttt{PASS: 3 local optimizer scenarios}, three scenario JSON
+reports, and \pathcode{summary.json} under \pathcode{artifact-results/optimizer/}.
+Each report contains instance
+types, zone names, instance counts, estimated hourly cost, performance score,
+selected alpha, and total pod capacity. The command checks that capacity
+covers the requested pod count and instance counts respect the stored
+availability limits. Compare recommendations across the three requirements.
+
+\end{document}
