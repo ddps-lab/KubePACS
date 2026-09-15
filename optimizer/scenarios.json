@@ -1,0 +1,12 @@
+[
+  {"region": "us-east-1", "pods": 10, "cpu": 1, "mem": 2},
+  {"region": "us-west-2", "pods": 10, "cpu": 1, "mem": 2},
+  {"region": "eu-west-1", "pods": 10, "cpu": 1, "mem": 2},
+  {"region": "ap-northeast-1", "pods": 10, "cpu": 1, "mem": 2},
+  {"region": "us-east-1", "pods": 50, "cpu": 2, "mem": 4},
+  {"region": "us-west-2", "pods": 50, "cpu": 2, "mem": 4},
+  {"region": "eu-west-1", "pods": 50, "cpu": 2, "mem": 4},
+  {"region": "ap-northeast-1", "pods": 50, "cpu": 2, "mem": 4},
+  {"region": "us-east-1", "pods": 100, "cpu": 4, "mem": 2},
+  {"region": "us-west-2", "pods": 100, "cpu": 1, "mem": 8}
+]

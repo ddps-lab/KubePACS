@@ -24,7 +24,7 @@ The figure and table workflows process the supplied experimental results.
 | Component | Purpose | Instructions |
 | --- | --- | --- |
 | `figures/` | Regenerate Figures 1, 2, and 5-12 and Tables 2-3 | [Figures and Tables](figures/README.md) |
-| `figures/common/library/` | Run the optimizer on stored inputs | [Local Optimizer Check](figures/common/library/README.md#local-optimizer-check) |
+| `optimizer/` | Run ten scenarios across four regions | [Local Optimizer Check](optimizer/README.md) |
 | `api/` | Run the optimizer with packaged input | [API](api/README.md) |
 | `KubePACS_with_Karpenter/` | Build and deploy the modified autoscaler | [Karpenter](KubePACS_with_Karpenter/README.md) |
 | `IaC/IaC_karpenter_kubepacs/` | Provision an AWS/EKS test environment | [Terraform](IaC/IaC_karpenter_kubepacs/README.md) |
@@ -37,15 +37,21 @@ also retain any uncommitted artifact files.
 
 ## Install uv And Python
 
-Use a Linux terminal with Git and curl installed. On Ubuntu or Debian:
+Choose the instructions for your operating system. Python is managed by uv
+without changing system Python. The commands below follow the
+[official uv installation guide](https://docs.astral.sh/uv/getting-started/installation/).
+
+### Linux
+
+Use Bash or Zsh with Git and curl installed. On Ubuntu or Debian:
 
 ```sh
 sudo apt-get update
 sudo apt-get install -y git curl ca-certificates
 ```
 
-Install uv using its [official installer](https://docs.astral.sh/uv/getting-started/installation/),
-add the default installation directory to the current shell, and install Python:
+For other Linux distributions, install Git, curl, and CA certificates with
+your distribution's package manager. Then install uv and Python:
 
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -54,12 +60,50 @@ uv --version
 uv python install 3.11
 ```
 
-If `uv` is not found in a later terminal, reopen the terminal or repeat the
-`export PATH` command. Python is managed by uv without changing system Python.
+### macOS
+
+Open Terminal. Run `git --version` first. If macOS prompts you to install
+Command Line Tools, complete that installation before continuing.
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv --version
+uv python install 3.11
+```
+
+If you already use Homebrew, `brew install uv` is an alternative to the
+installer above. Then run `uv python install 3.11`.
+
+### Windows
+
+Open PowerShell. Install Git using the [Git for Windows installer](https://git-scm.com/downloads/win)
+if `git --version` is not available, then reopen PowerShell. Install uv and Python:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+$env:Path = "$HOME\.local\bin;$env:Path"
+uv --version
+uv python install 3.11
+```
+
+With WinGet, `winget install --id=astral-sh.uv -e` is an alternative to the
+uv installer. Reopen PowerShell after installation before running uv.
+
+### Common Commands
+
+If `uv` is not found in a later terminal, reopen it or repeat the PATH command
+for your shell. The single-line `git`, `uv sync`, and `uv run` commands below
+work with Bash, Zsh, and PowerShell. Use single-line commands in PowerShell
+instead of the Bash `\` line continuations shown in some component READMEs.
+
+Installation instructions cover all three operating systems. End-to-end
+artifact execution has been verified on Linux x86-64. macOS and native
+Windows execution still need platform-specific verification.
 
 ## Quick Start: Figures And Tables
 
-Requirements: Python 3.11, uv, and a Linux environment for the tested workflow.
+Requirements: Python 3.11 and uv. Linux x86-64 is the verified execution platform.
 Allow approximately 4 GiB free disk for dependencies, a temporary data copy,
 and outputs; this is a planning allowance, not a measured minimum. Supplied
 figure data occupy about 1.1 GiB. No GPU or cloud account is needed. Internet
@@ -106,21 +150,26 @@ Success is `PASS: Table 3`. CSV, Markdown, and LaTeX outputs are written to
 
 ## Local Optimizer Check
 
-Follow the [local optimizer command](figures/common/library/README.md#local-optimizer-check)
+Follow the [local optimizer command](optimizer/README.md)
 to run the existing optimizer on the supplied price, availability, hardware,
-and benchmark inputs. The three scenarios request 10 pods at 1 vCPU/2 GiB,
-50 pods at 2 vCPU/4 GiB, and 100 pods at 1 vCPU/8 GiB per pod.
+and benchmark inputs. Ten scenarios vary region, pod count, CPU, and memory
+across Virginia, Oregon, Ireland, and Tokyo.
 
-The `figures/common/library/check_optimizer.py` script accepts repeated
-`--case PODS,VCPU,GIB` arguments for custom requests and a fresh `--output`
-directory for each run. The merged CSV and AZ mapping are included in Git.
+```sh
+uv sync --locked --project optimizer
+uv run --locked --project optimizer python optimizer/check_optimizer.py
+```
 
-Success is `PASS: 3 local optimizer scenarios`, three scenario JSON reports,
+The script accepts repeated `--case REGION,PODS,VCPU,GIB` arguments for custom
+requests and a fresh `--output` directory for each run. Regional CSVs and AZ
+mappings are included in `optimizer/data/`.
+
+Success is `PASS: 10 local optimizer scenarios`, ten scenario JSON reports,
 and `summary.json` in `artifact-results/optimizer/`. Inspect the selected instance types, zone names,
 instance counts, estimated hourly cost, performance score, and pod capacity.
 The command checks that each allocation covers the requested pod count and
-respects the stored per-candidate availability limits. It reads both the
-merged input CSV and AZ mapping locally.
+respects the stored per-candidate availability limits. It also recomputes cost
+and capacity from the regional CSV. It reads both the CSV and AZ mapping locally.
 
 ## Reproducing Results
 

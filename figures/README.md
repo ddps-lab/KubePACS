@@ -5,7 +5,7 @@ reference PDFs. To avoid the cost and setup effort of running AWS experiments,
 the scripts regenerate the figures locally from the supplied data.
 Tables 2 and 3 also have local generation commands described below.
 All commands below start at the repository root.
-The [local optimizer check](common/library/README.md#local-optimizer-check)
+The [local optimizer check](../optimizer/README.md)
 also exercises instance selection with different pod requirements.
 
 ## Environment
@@ -16,6 +16,9 @@ instructions, then use Python 3.11 with the supplied `uv.lock`:
 ```sh
 uv sync --locked --project figures --python 3.11
 ```
+
+The root README provides Linux, macOS, and Windows installation commands.
+In PowerShell, enter multi-line Bash examples as one line without the `\`.
 
 The workflow has been checked on Linux. Allow about 4 GiB free disk for
 dependencies and the temporary copy. No GPU or AWS credentials are needed.

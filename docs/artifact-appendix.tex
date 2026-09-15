@@ -79,7 +79,7 @@ generates figures and tables from the supplied results locally. We request the
     Each plotting script has a 180-second timeout. Allow several additional
     minutes for the optimizer check.
   \item \textbf{Outputs:} 24 figure PDFs and Tables 2 and 3 in CSV, Markdown,
-    and LaTeX. Optimizer recommendations are saved as three JSON reports.
+    and LaTeX. Optimizer recommendations are saved as ten JSON reports.
     Figure execution logs and a machine-readable summary are also provided.
   \item \textbf{Access:} Source, data, and instructions at \url{\repo}.
 \end{itemize}
@@ -91,6 +91,10 @@ in this appendix start at its root.
 \begin{lstlisting}
 KubePACS/
 |-- README.md
+|-- optimizer/
+|   |-- check_optimizer.py
+|   |-- scenarios.json
+|   +-- data/
 |-- figures/
 |   |-- reproduce.py
 |   |-- figure*/
@@ -184,23 +188,27 @@ The local workflow reprocesses stored experimental results for generation
 and inspection of the figures and tables.
 
 \subsection{Local Optimizer Check}
-Run \pathcode{figures/common/library/check_optimizer.py} using the command
-in its accompanying README to invoke \texttt{getGoldenNodepool} with the
-supplied merged CSV and cached AZ mapping. Both input files are included
-in the repository.
-These files provide prices, availability limits, hardware specifications,
-benchmark scores, and zone names. The command uses the existing optimizer
-with three requirements: 10 pods at 1 vCPU and 2 GiB per pod, 50 pods at
-2 vCPU and 4 GiB, and 100 pods at 1 vCPU and 8 GiB.
+The \pathcode{optimizer/} directory provides an independent locked environment
+and regional CSV and AZ mapping files. Run:
+\begin{lstlisting}
+uv sync --locked --project optimizer
+uv run --locked --project optimizer \
+  python optimizer/check_optimizer.py
+\end{lstlisting}
+The ten scenarios in \pathcode{optimizer/scenarios.json} vary pod count,
+CPU, and memory across Virginia, Oregon, Ireland, and Tokyo. They use
+stored prices, availability limits, hardware specifications, benchmark
+scores, and zone mappings with the existing optimizer implementation.
 
-Use repeated \texttt{-{}-case PODS,VCPU,GIB} arguments to supply different
+Use repeated \texttt{-{}-case REGION,PODS,VCPU,GIB} arguments to supply different
 requirements and \texttt{-{}-output} to select a fresh output directory.
-Success is \texttt{PASS: 3 local optimizer scenarios}, three scenario JSON
+Success is \texttt{PASS: 10 local optimizer scenarios}, ten scenario JSON
 reports, and \pathcode{summary.json} under \pathcode{artifact-results/optimizer/}.
 Each report contains instance
 types, zone names, instance counts, estimated hourly cost, performance score,
 selected alpha, and total pod capacity. The command checks that capacity
 covers the requested pod count and instance counts respect the stored
-availability limits. Compare recommendations across the three requirements.
+availability limits. It also recomputes cost and capacity from the regional
+CSV. Compare recommendations across regions and resource requirements.
 
 \end{document}
