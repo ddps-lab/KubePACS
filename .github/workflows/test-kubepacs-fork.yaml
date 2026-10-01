@@ -1,0 +1,96 @@
+name: Test KubePACS Karpenter Fork
+
+# Regression tests for the Karpenter fork: the full upstream core and AWS provider suites
+# (existing Karpenter behavior), KubePACS scheduler integration tests, the Python solver tests,
+# and the Helm chart.
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - .github/workflows/test-kubepacs-fork.yaml
+      - KubePACS_with_Karpenter/**
+  pull_request:
+    paths:
+      - .github/workflows/test-kubepacs-fork.yaml
+      - KubePACS_with_Karpenter/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  K8S_VERSION: "1.36.x"
+  KUBEBUILDER_ASSETS: /usr/local/kubebuilder/bin
+
+jobs:
+  go-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [karpenter-core, karpenter-provider-aws]
+    defaults:
+      run:
+        working-directory: KubePACS_with_Karpenter/${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: KubePACS_with_Karpenter/${{ matrix.module }}/go.mod
+          cache-dependency-path: |
+            KubePACS_with_Karpenter/karpenter-core/go.sum
+            KubePACS_with_Karpenter/karpenter-core/go.tools.sum
+            KubePACS_with_Karpenter/karpenter-provider-aws/go.sum
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install envtest binaries
+        working-directory: KubePACS_with_Karpenter/karpenter-core
+        run: |
+          sudo mkdir -p "$KUBEBUILDER_ASSETS"
+          sudo chown "$USER" "$KUBEBUILDER_ASSETS"
+          ASSETS=$(go tool -modfile=go.tools.mod setup-envtest use -p path "$K8S_VERSION")
+          cp -r "$ASSETS"/* "$KUBEBUILDER_ASSETS"/
+          ls "$KUBEBUILDER_ASSETS"
+
+      - name: Test
+        run: go test ./pkg/... -race -timeout 60m
+
+  python-solver:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: KubePACS_with_Karpenter
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pinned solver dependencies
+        run: pip install -r karpenter-provider-aws/kubepacs-requirements.txt
+
+      - name: Test
+        run: python -m unittest discover -v -s karpenter-core/pkg/controllers/provisioning/scheduling -p "test_kubepacs_cli.py"
+
+  helm-chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Lint and render
+        run: |
+          CHART=KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter
+          helm lint "$CHART"
+          helm template karpenter "$CHART" -n kube-system --set settings.clusterName=test \
+            --set settings.kubepacs.unavailableOfferingsTTL=3m > /tmp/rendered.yaml
+          grep -q 'name: KUBEPACS_UNAVAILABLE_OFFERINGS_TTL' /tmp/rendered.yaml
+          grep -q 'mountPath: /tmp' /tmp/rendered.yaml
