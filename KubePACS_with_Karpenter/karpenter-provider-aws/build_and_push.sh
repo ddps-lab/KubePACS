@@ -8,7 +8,7 @@ REGION="${REGION:-us-east-1}"
 PROFILE="${AWS_PROFILE:-${PROFILE:-default}}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:-karpenter-custom}"
-PLATFORM="${PLATFORM:-linux/amd64}"
+PLATFORM="${PLATFORM:-linux/amd64,linux/arm64}"
 
 if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
   AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text --profile "${PROFILE}")"

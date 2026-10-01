@@ -20,7 +20,7 @@ env:
   CHART_REPO_URL: https://helm.kubepacs.ddps.cloud/charts
   PAGES_CUSTOM_DOMAIN: helm.kubepacs.ddps.cloud
   CONTROLLER_IMAGE: ghcr.io/ddps-lab/kubepacs-karpenter-controller
-  CONTROLLER_TAG: 1.8.1-kubepacs
+  CONTROLLER_TAG: 1.14.0-kubepacs
 
 jobs:
   publish:
@@ -30,6 +30,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
 
       - uses: docker/setup-buildx-action@v3
 
@@ -44,7 +46,7 @@ jobs:
           context: KubePACS_with_Karpenter
           file: KubePACS_with_Karpenter/karpenter-provider-aws/Dockerfile
           push: true
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.CONTROLLER_IMAGE }}:${{ env.CONTROLLER_TAG }}
             ${{ env.CONTROLLER_IMAGE }}:latest
