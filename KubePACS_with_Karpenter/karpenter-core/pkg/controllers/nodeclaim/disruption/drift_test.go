@@ -17,6 +17,7 @@ limitations under the License.
 package disruption_test
 
 import (
+	"slices"
 	"time"
 
 	"github.com/imdario/mergo"
@@ -85,7 +86,7 @@ var _ = Describe("Drift", func() {
 	It("should detect stale instance type drift if the instance type label doesn't exist", func() {
 		delete(nodeClaim.Labels, corev1.LabelInstanceTypeStable)
 		ExpectApplied(ctx, env.Client, nodePool, nodeClaim)
-		fakeClock.Step(time.Hour * 2) // To move 2h past the creationTimestamp
+		env.Clock.Step(time.Hour * 2) // To move 2h past the creationTimestamp
 		ExpectObjectReconciled(ctx, env.Client, nodeClaimDisruptionController, nodeClaim)
 
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
@@ -94,7 +95,7 @@ var _ = Describe("Drift", func() {
 	It("should detect stale instance type drift if the instance type doesn't exist", func() {
 		cp.InstanceTypes = nil
 		ExpectApplied(ctx, env.Client, nodePool, nodeClaim)
-		fakeClock.Step(time.Hour * 2) // To move 2h past the creationTimestamp
+		env.Clock.Step(time.Hour * 2) // To move 2h past the creationTimestamp
 		ExpectObjectReconciled(ctx, env.Client, nodeClaimDisruptionController, nodeClaim)
 
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
@@ -106,7 +107,7 @@ var _ = Describe("Drift", func() {
 			return it
 		})
 		ExpectApplied(ctx, env.Client, nodePool, nodeClaim)
-		fakeClock.Step(time.Hour * 2) // To move 2h past the creationTimestamp
+		env.Clock.Step(time.Hour * 2) // To move 2h past the creationTimestamp
 		ExpectObjectReconciled(ctx, env.Client, nodeClaimDisruptionController, nodeClaim)
 
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
@@ -124,7 +125,7 @@ var _ = Describe("Drift", func() {
 			return it
 		})
 		ExpectApplied(ctx, env.Client, nodePool, nodeClaim)
-		fakeClock.Step(time.Hour * 2) // To move 2h past the creationTimestamp
+		env.Clock.Step(time.Hour * 2) // To move 2h past the creationTimestamp
 		ExpectObjectReconciled(ctx, env.Client, nodeClaimDisruptionController, nodeClaim)
 
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
@@ -151,10 +152,8 @@ var _ = Describe("Drift", func() {
 		cp.Drifted = "drifted"
 		nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceTypeStable,
-					Operator: corev1.NodeSelectorOpDoesNotExist,
-				},
+				Key:      corev1.LabelInstanceTypeStable,
+				Operator: corev1.NodeSelectorOpDoesNotExist,
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClaim)
@@ -229,12 +228,12 @@ var _ = Describe("Drift", func() {
 			Entry(
 				"should return drifted if the nodePool node requirement is updated",
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.ArchitectureAmd64}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.ArchitectureAmd64}},
+					{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}},
 				},
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeSpot}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeSpot}},
 				},
 				map[string]string{
 					v1.CapacityTypeLabelKey: v1.CapacityTypeOnDemand,
@@ -245,13 +244,13 @@ var _ = Describe("Drift", func() {
 			Entry(
 				"should return drifted if a new node requirement is added",
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}},
 				},
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.ArchitectureAmd64}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}},
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.ArchitectureAmd64}},
 				},
 				map[string]string{
 					v1.CapacityTypeLabelKey: v1.CapacityTypeOnDemand,
@@ -262,12 +261,12 @@ var _ = Describe("Drift", func() {
 			Entry(
 				"should return drifted if a node requirement is reduced",
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux), string(corev1.Windows)}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux), string(corev1.Windows)}},
 				},
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Windows)}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Windows)}},
 				},
 				map[string]string{
 					v1.CapacityTypeLabelKey: v1.CapacityTypeOnDemand,
@@ -278,12 +277,12 @@ var _ = Describe("Drift", func() {
 			Entry(
 				"should not return drifted if a node requirement is expanded",
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}},
 				},
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux), string(corev1.Windows)}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux), string(corev1.Windows)}},
 				},
 				map[string]string{
 					v1.CapacityTypeLabelKey: v1.CapacityTypeOnDemand,
@@ -294,12 +293,12 @@ var _ = Describe("Drift", func() {
 			Entry(
 				"should not return drifted if a node requirement set to Exists",
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}},
 				},
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpExists, Values: []string{}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpExists, Values: []string{}},
 				},
 				map[string]string{
 					v1.CapacityTypeLabelKey: v1.CapacityTypeOnDemand,
@@ -310,12 +309,12 @@ var _ = Describe("Drift", func() {
 			Entry(
 				"should return drifted if a node requirement set to DoesNotExists",
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}},
 				},
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpDoesNotExist, Values: []string{}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpDoesNotExist, Values: []string{}},
 				},
 				map[string]string{
 					v1.CapacityTypeLabelKey: v1.CapacityTypeOnDemand,
@@ -326,12 +325,12 @@ var _ = Describe("Drift", func() {
 			Entry(
 				"should not return drifted if a nodeClaim is greater then node requirement",
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: "test-label", Operator: corev1.NodeSelectorOpGt, Values: []string{"2"}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: "test-label", Operator: corev1.NodeSelectorOpGt, Values: []string{"2"}},
 				},
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: "test-label", Operator: corev1.NodeSelectorOpGt, Values: []string{"10"}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: "test-label", Operator: corev1.NodeSelectorOpGt, Values: []string{"10"}},
 				},
 				map[string]string{
 					v1.CapacityTypeLabelKey: v1.CapacityTypeOnDemand,
@@ -342,12 +341,12 @@ var _ = Describe("Drift", func() {
 			Entry(
 				"should not return drifted if a nodeClaim is less then node requirement",
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: "test-label", Operator: corev1.NodeSelectorOpLt, Values: []string{"5"}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: "test-label", Operator: corev1.NodeSelectorOpLt, Values: []string{"5"}},
 				},
 				[]v1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: "test-label", Operator: corev1.NodeSelectorOpLt, Values: []string{"1"}}},
+					{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+					{Key: "test-label", Operator: corev1.NodeSelectorOpLt, Values: []string{"1"}},
 				},
 				map[string]string{
 					v1.CapacityTypeLabelKey: v1.CapacityTypeOnDemand,
@@ -358,8 +357,8 @@ var _ = Describe("Drift", func() {
 		)
 		It("should return drifted only on NodeClaims that are drifted from an updated nodePool", func() {
 			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirementWithMinValues{
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux), string(corev1.Windows)}}},
+				{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+				{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux), string(corev1.Windows)}},
 			}
 			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{
 				v1.CapacityTypeLabelKey: v1.CapacityTypeOnDemand,
@@ -393,8 +392,8 @@ var _ = Describe("Drift", func() {
 
 			// Removed Windows OS
 			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirementWithMinValues{
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}}},
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}}},
+				{Key: v1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{v1.CapacityTypeOnDemand}},
+				{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Linux)}},
 			}
 			ExpectApplied(ctx, env.Client, nodePool)
 
@@ -555,15 +554,10 @@ var _ = Describe("Drift", func() {
 			func(expectDrifted bool, includedCapacityTypes ...string) {
 				it.Offerings = lo.Filter(it.Offerings, func(o *cloudprovider.Offering, _ int) bool {
 					ct := o.Requirements.Get(v1.CapacityTypeLabelKey).Any()
-					for _, ict := range includedCapacityTypes {
-						if ct == ict {
-							return true
-						}
-					}
-					return false
+					return slices.Contains(includedCapacityTypes, ct)
 				})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClaim)
-				fakeClock.Step(time.Hour * 2) // To move 2h past the creationTimestamp
+				env.Clock.Step(time.Hour * 2) // To move 2h past the creationTimestamp
 				ExpectObjectReconciled(ctx, env.Client, nodeClaimDisruptionController, nodeClaim)
 
 				nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)

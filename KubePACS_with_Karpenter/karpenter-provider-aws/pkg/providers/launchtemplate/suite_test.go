@@ -50,6 +50,7 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -103,9 +104,9 @@ var _ = BeforeSuite(func() {
 	fakeClock = &clock.FakeClock{}
 	recorder = events.NewRecorder(&record.FakeRecorder{})
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.InstanceTypeStore)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock)
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -171,11 +172,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      karpv1.CapacityTypeLabelKey,
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{karpv1.CapacityTypeOnDemand},
-								},
+								Key:      karpv1.CapacityTypeLabelKey,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{karpv1.CapacityTypeOnDemand},
 							},
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
@@ -237,11 +236,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      karpv1.CapacityTypeLabelKey,
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{karpv1.CapacityTypeSpot},
-								},
+								Key:      karpv1.CapacityTypeLabelKey,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{karpv1.CapacityTypeSpot},
 							},
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
@@ -518,12 +515,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{DetailedMonitoring: true},
 				{EFACount: 12},
 				{CapacityType: "spot"},
+				{EnclaveEnabled: true},
 			}
 			launchtemplateResult := []string{}
 			for _, lt := range launchtemplates {
 				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
 			}
-			Expect(len(launchtemplateResult)).To(BeNumerically("==", 6))
+			Expect(len(launchtemplateResult)).To(BeNumerically("==", 7))
 			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
 		})
 		It("should not generate different launch template names based on instance types", func() {
@@ -581,11 +579,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      karpv1.CapacityTypeLabelKey,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{karpv1.CapacityTypeSpot},
-					},
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.CapacityTypeSpot},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1046,6 +1042,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nil,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
+				nil,
 				nodeClass.Spec.Kubelet.MaxPods,
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
@@ -1099,6 +1096,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nil,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
+				nil,
 				nodeClass.Spec.Kubelet.MaxPods,
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
@@ -1126,6 +1124,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nil,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
+				nil,
 				nodeClass.Spec.Kubelet.MaxPods,
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
@@ -1388,27 +1387,32 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Expect(cpuCFSQuota).To(BeFalse())
 			}
 		})
-		It("should not pass any labels prefixed with the node-restriction.kubernetes.io domain", func() {
-			nodePool.Spec.Template.Labels = lo.Assign(nodePool.Spec.Template.Labels, map[string]string{
-				corev1.LabelNamespaceNodeRestriction + "/team":                        "team-1",
-				corev1.LabelNamespaceNodeRestriction + "/custom-label":                "custom-value",
-				"subdomain." + corev1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
-			})
-			nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(nodePool.Spec.Template.Labels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
-				return karpv1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+		DescribeTable(
+			"should not pass any labels in restricted domains",
+			func(label string) {
+				nodePool.Spec.Template.Labels = lo.Assign(nodePool.Spec.Template.Labels, map[string]string{
+					label: "foobar",
+				})
+				nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(nodePool.Spec.Template.Labels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
+					return karpv1.NodeSelectorRequirementWithMinValues{
 						Key:      k,
 						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{v},
-					},
-				}
-			})
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataNotContaining(corev1.LabelNamespaceNodeRestriction)
-		})
+					}
+				})
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				ExpectLaunchTemplatesCreatedWithUserDataNotContaining(label)
+			},
+			Entry(corev1.LabelNamespaceNodeRestriction, corev1.LabelNamespaceNodeRestriction+"/bar"),
+			Entry("kubernetes.io", "kubernetes.io/bar"),
+			Entry("k8s.io", "k8s.io/bar"),
+			Entry("*."+corev1.LabelNamespaceNodeRestriction, "foo."+corev1.LabelNamespaceNodeRestriction+"/bar"),
+			Entry("kubernetes.io suffix", "foo.kubernetes.io/bar"),
+			Entry("*.k8s.io", "foo.k8s.io/bar"),
+		)
 		It("should specify --local-disks raid0 when instance-store policy is set on AL2", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
@@ -1568,7 +1572,7 @@ essential = true
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.SystemReserved)).To(Equal(3))
 					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
 					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
@@ -1592,7 +1596,7 @@ essential = true
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.KubeReserved)).To(Equal(3))
 					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
 					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
@@ -1656,7 +1660,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.EvictionHard)).To(Equal(3))
 					Expect(config.Settings.Kubernetes.EvictionHard["memory.available"]).To(Equal("10%"))
 					Expect(config.Settings.Kubernetes.EvictionHard["nodefs.available"]).To(Equal("15%"))
@@ -1676,7 +1680,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.MaxPods).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 10))
 				})
@@ -1694,7 +1698,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ImageGCHighThresholdPercent).ToNot(BeNil())
 					percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCHighThresholdPercent)
 					Expect(err).ToNot(HaveOccurred())
@@ -1714,7 +1718,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ImageGCLowThresholdPercent).ToNot(BeNil())
 					percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCLowThresholdPercent)
 					Expect(err).ToNot(HaveOccurred())
@@ -1731,7 +1735,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ClusterDNSIP).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.ClusterDNSIP).To(Equal("10.0.100.10"))
 				})
@@ -1749,7 +1753,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.CPUCFSQuota).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.CPUCFSQuota).To(BeFalse())
 				})
@@ -1767,7 +1771,7 @@ eviction-max-pod-grace-period = 10
 				ExpectScheduled(ctx, env.Client, pod)
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, []byte(userData))).To(Succeed())
 					for k, v := range desiredLabels {
 						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
 					}
@@ -1780,11 +1784,9 @@ eviction-max-pod-grace-period = 10
 				}
 				nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(desiredLabels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
 					return karpv1.NodeSelectorRequirementWithMinValues{
-						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-							Key:      k,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{v},
-						},
+						Key:      k,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{v},
 					}
 				})
 
@@ -1794,7 +1796,7 @@ eviction-max-pod-grace-period = 10
 				ExpectScheduled(ctx, env.Client, pod)
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, []byte(userData))).To(Succeed())
 					for k, v := range desiredLabels {
 						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
 					}
@@ -1890,8 +1892,8 @@ eviction-max-pod-grace-period = 10
 						taints := []corev1.Taint{}
 						Expect(yaml.Unmarshal(taintsRaw.Raw, &taints)).To(Succeed())
 						Expect(len(taints)).To(Equal(3))
-						Expect(taints).To(ContainElements(lo.Map(desiredTaints, func(t corev1.Taint, _ int) interface{} {
-							return interface{}(t)
+						Expect(taints).To(ContainElements(lo.Map(desiredTaints, func(t corev1.Taint, _ int) any {
+							return any(t)
 						})))
 					}
 				})
@@ -1925,11 +1927,9 @@ eviction-max-pod-grace-period = 10
 					}
 					nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(desiredLabels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
 						return karpv1.NodeSelectorRequirementWithMinValues{
-							NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-								Key:      k,
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{v},
-							},
+							Key:      k,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{v},
 						}
 					})
 
@@ -1962,9 +1962,9 @@ eviction-max-pod-grace-period = 10
 						inlineConfig := func() map[string]runtime.RawExtension {
 							configYAML, err := yaml.Marshal(kc)
 							Expect(err).To(BeNil())
-							configMap := map[string]interface{}{}
+							configMap := map[string]any{}
 							Expect(yaml.Unmarshal(configYAML, &configMap)).To(Succeed())
-							return lo.MapValues(configMap, func(v interface{}, _ string) runtime.RawExtension {
+							return lo.MapValues(configMap, func(v any, _ string) runtime.RawExtension {
 								val, err := json.Marshal(v)
 								Expect(err).To(BeNil())
 								return runtime.RawExtension{Raw: val}
@@ -2187,7 +2187,7 @@ eviction-max-pod-grace-period = 10
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 2))
-				expectedImageIds := sets.New[string]("ami-123", "ami-456")
+				expectedImageIds := sets.New("ami-123", "ami-456")
 				actualImageIds := sets.New[string]()
 				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 					actualImageIds.Insert(*ltInput.LaunchTemplateData.ImageId)
@@ -2223,16 +2223,14 @@ eviction-max-pod-grace-period = 10
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{
-						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-							Key:      corev1.LabelArchStable,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{karpv1.ArchitectureAmd64},
-						},
+						Key:      corev1.LabelArchStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{karpv1.ArchitectureAmd64},
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 
-				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
+				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 
 				pod := coretest.UnschedulablePod()
@@ -2358,7 +2356,7 @@ eviction-max-pod-grace-period = 10
 		})
 		Context("Windows Custom UserData", func() {
 			BeforeEach(func() {
-				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Windows)}}}}
+				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Windows)}}}
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			})
@@ -2420,6 +2418,50 @@ eviction-max-pod-grace-period = 10
 			})
 		})
 	})
+	Context("Enclave Options", func() {
+		It("should default enclave options to disabled", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeFalse())
+			})
+		})
+		It("should enable enclave options when nip-slots is in the nodeclaim's resource requests", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			// Build a NodeClaim with nip-slots already in Spec.Resources.Requests,
+			// simulating what the scheduler sets when pods request that resource
+			nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+				Spec: karpv1.NodeClaimSpec{
+					Resources: karpv1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							v1.ResourceNIPSlots: resource.MustParse("1"),
+						},
+					},
+					NodeClassRef: &karpv1.NodeClassReference{
+						Group: "karpenter.k8s.aws",
+						Kind:  "EC2NodeClass",
+						Name:  nodeClass.Name,
+					},
+				},
+			})
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+
+			_, err = awsEnv.LaunchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, nodeClass.Spec.Tags, "default")
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
+			})
+		})
+	})
 	Context("Instance Metadata", func() {
 		It("should set the default instance metadata settings on instances", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2458,6 +2500,7 @@ eviction-max-pod-grace-period = 10
 						awsEnv.AMIResolver,
 						awsEnv.SecurityGroupProvider,
 						awsEnv.SubnetProvider,
+						awsEnv.PlacementGroupProvider,
 						awsEnv.LaunchTemplateProvider.CABundle,
 						make(chan struct{}),
 						net.ParseIP(lo.Ternary(ipFamily == corev1.IPv4Protocol, "10.0.100.10", "fd01:99f0:d47b::a")),
@@ -2506,6 +2549,178 @@ eviction-max-pod-grace-period = 10
 				Entry("AssociatePublicIPAddress is set as false and EFA is false", true, false, false),
 			)
 		})
+		Context("Connection Tracking settings", func() {
+			DescribeTable(
+				"should set 'ConnectionTracking' based on EC2NodeClass",
+				func(connTrack *v1.ConnectionTracking, expected *ec2types.ConnectionTrackingSpecificationRequest) {
+					nodeClass.Spec.ConnectionTracking = connTrack
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod(coretest.PodOptions{})
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].ConnectionTrackingSpecification).To(Equal(expected))
+				},
+				Entry("ConnectionTracking is nil", nil, nil),
+				Entry("ConnectionTracking with AWS defaults",
+					&v1.ConnectionTracking{
+						TCPEstablishedTimeout: lo.ToPtr(int32(432000)),
+						UDPStreamTimeout:      lo.ToPtr(int32(180)),
+						UDPTimeout:            lo.ToPtr(int32(30)),
+					},
+					&ec2types.ConnectionTrackingSpecificationRequest{
+						TcpEstablishedTimeout: aws.Int32(432000),
+						UdpStreamTimeout:      aws.Int32(180),
+						UdpTimeout:            aws.Int32(30),
+					},
+				),
+				Entry("ConnectionTracking with non-default TCP timeout",
+					&v1.ConnectionTracking{
+						TCPEstablishedTimeout: lo.ToPtr(int32(86400)),
+					},
+					&ec2types.ConnectionTrackingSpecificationRequest{
+						TcpEstablishedTimeout: aws.Int32(86400),
+					},
+				),
+			)
+			Context("propagation across all ENIs", func() {
+				var expected *ec2types.ConnectionTrackingSpecificationRequest
+				BeforeEach(func() {
+					nodeClass.Spec.ConnectionTracking = &v1.ConnectionTracking{
+						TCPEstablishedTimeout: lo.ToPtr(int32(86400)),
+						UDPStreamTimeout:      lo.ToPtr(int32(120)),
+						UDPTimeout:            lo.ToPtr(int32(45)),
+					}
+					expected = &ec2types.ConnectionTrackingSpecificationRequest{
+						TcpEstablishedTimeout: aws.Int32(86400),
+						UdpStreamTimeout:      aws.Int32(120),
+						UdpTimeout:            aws.Int32(45),
+					}
+				})
+				It("should apply ConnectionTracking to every EFA ENI in the launch template", func() {
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod(coretest.PodOptions{
+						ResourceRequirements: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+							Limits:   corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+						},
+					})
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(BeNumerically(">", 1))
+					for _, ni := range input.LaunchTemplateData.NetworkInterfaces {
+						Expect(lo.FromPtr(ni.InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
+						Expect(ni.ConnectionTrackingSpecification).To(Equal(expected))
+					}
+				})
+				It("should apply ConnectionTracking to every user-configured NetworkInterface in the launch template except efa-only", func() {
+					nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+						{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+						{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+						{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface},
+					}
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(4))
+					for _, ni := range input.LaunchTemplateData.NetworkInterfaces {
+						if lo.FromPtr(ni.InterfaceType) == string(v1.InterfaceTypeEFAOnly) {
+							Expect(ni.ConnectionTrackingSpecification).To(BeNil())
+						} else {
+							Expect(ni.ConnectionTrackingSpecification).To(Equal(expected))
+						}
+					}
+				})
+			})
+		})
+	})
+	Context("Network Interfaces", func() {
+		DescribeTable("should configure network interfaces with same configuration as NodeClass",
+			func(pod *corev1.Pod) {
+				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+					{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+					{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+
+				Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(4))
+				// NC=0,DI=0
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].NetworkCardIndex)).To(Equal(int32(0)))
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].DeviceIndex)).To(Equal(int32(0)))
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
+				// NC=0, DI=1
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].NetworkCardIndex)).To(Equal(int32(0)))
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].DeviceIndex)).To(Equal(int32(1)))
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
+				// NC=1, DI=0
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[2].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
+				// NC=1, DI=1
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[3].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
+			},
+			Entry("when pod does not request EFA", coretest.UnschedulablePod()),
+			Entry("when pod does request EFA", coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+					Limits:   corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+				},
+			})),
+		)
+		It("should not set prefix count on EFA-only interfaces", func() {
+			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+				{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface},
+			}
+			nodeClass.Spec.IPPrefixCount = lo.ToPtr(int32(2))
+			awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv4Protocol
+			pod := coretest.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(3))
+			// should set prefix count on ENA interfaces
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv4PrefixCount)).To(Equal(int32(2)))
+			// should not set prefix count on EFA-only interfaces
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
+			Expect(input.LaunchTemplateData.NetworkInterfaces[1].Ipv4PrefixCount).To(BeNil())
+			// should set prefix count on ENA interfaces
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[2].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[2].Ipv4PrefixCount)).To(Equal(int32(2)))
+		})
+		It("should not set Ipv6 specs on EFA-only interfaces", func() {
+			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+			}
+			awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv6Protocol
+			pod := coretest.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(2))
+			// should set PrimaryIpv6 and Ipv6AddressCount on ENA interfaces
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].PrimaryIpv6)).To(Equal(true))
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6AddressCount)).To(Equal(int32(1)))
+			// should not set PrimaryIpv6 and Ipv6AddressCount on EFA-only interfaces
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].PrimaryIpv6)).To(Equal(false))
+			Expect(input.LaunchTemplateData.NetworkInterfaces[1].Ipv6AddressCount).To(BeNil())
+		})
 	})
 	Context("Tenancy", func() {
 		DescribeTable("should set tenancy on launch template",
@@ -2541,6 +2756,7 @@ eviction-max-pod-grace-period = 10
 				AvailableInstanceCount: lo.ToPtr[int32](10),
 				State:                  ec2types.CapacityReservationStateActive,
 				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(false),
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
@@ -2551,6 +2767,7 @@ eviction-max-pod-grace-period = 10
 				AvailableInstanceCount: lo.ToPtr[int32](15),
 				State:                  ec2types.CapacityReservationStateActive,
 				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(false),
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1b"),
@@ -2561,6 +2778,7 @@ eviction-max-pod-grace-period = 10
 				AvailableInstanceCount: lo.ToPtr[int32](10),
 				State:                  ec2types.CapacityReservationStateActive,
 				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(false),
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1b"),
@@ -2571,6 +2789,7 @@ eviction-max-pod-grace-period = 10
 				AvailableInstanceCount: lo.ToPtr[int32](15),
 				State:                  ec2types.CapacityReservationStateActive,
 				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(false),
 			},
 		}
 		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
@@ -2581,11 +2800,11 @@ eviction-max-pod-grace-period = 10
 			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(*cr.CapacityReservationId, int(*cr.AvailableInstanceCount))
 		}
 
-		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{
 			Key:      karpv1.CapacityTypeLabelKey,
 			Operator: corev1.NodeSelectorOpIn,
 			Values:   []string{karpv1.CapacityTypeReserved},
-		}}}
+		}}
 		pod := coretest.UnschedulablePod()
 		ExpectApplied(ctx, env.Client, pod, nodePool, nodeClass)
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2596,7 +2815,7 @@ eviction-max-pod-grace-period = 10
 			lt := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 			launchTemplates[*lt.LaunchTemplateName] = lt
 		}
-		// We should have created 3 launch templates, rather than 4 since we only create 1 launch template per capacity pool
+		// We should have created 3 launch templates, rather than 5 since we only create 1 launch template per capacity pool
 		Expect(launchTemplates).To(HaveLen(3))
 		reservationIDs := lo.Uniq(lo.Map(lo.Values(launchTemplates), func(input *ec2.CreateLaunchTemplateInput, _ int) string {
 			return *input.LaunchTemplateData.CapacityReservationSpecification.CapacityReservationTarget.CapacityReservationId
@@ -2629,6 +2848,60 @@ eviction-max-pod-grace-period = 10
 			Expect(ltc.Overrides[0].InstanceType).To(Equal(ec2types.InstanceType(*cr.InstanceType)))
 		}
 	})
+	DescribeTable(
+		"should correctly assign the market type for reserved capacity", func(cr ec2types.CapacityReservation, expectedMarketType ec2types.MarketType) {
+			awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
+				CapacityReservations: []ec2types.CapacityReservation{cr},
+			})
+			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, lo.Must(v1.CapacityReservationFromEC2(fakeClock, &cr)))
+			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(*cr.CapacityReservationId, int(*cr.AvailableInstanceCount))
+
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.CapacityTypeReserved},
+			}}
+			pod := coretest.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, pod, nodePool, nodeClass)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			launchTemplates := map[string]*ec2.CreateLaunchTemplateInput{}
+			for awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len() != 0 {
+				lt := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+				launchTemplates[*lt.LaunchTemplateName] = lt
+			}
+			Expect(lo.Values(launchTemplates)[0].LaunchTemplateData.InstanceMarketOptions.MarketType).To(Equal(expectedMarketType))
+		},
+		Entry(
+			"with default interruptible reservation type", ec2types.CapacityReservation{
+				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+				InstanceType:           lo.ToPtr("m5.large"),
+				OwnerId:                lo.ToPtr("012345678901"),
+				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
+				AvailableInstanceCount: lo.ToPtr[int32](10),
+				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(true),
+			},
+			ec2types.MarketTypeInterruptibleCapacityReservation,
+		),
+		Entry(
+			"with capacity block reservation type", ec2types.CapacityReservation{
+				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+				InstanceType:           lo.ToPtr("m5.large"),
+				OwnerId:                lo.ToPtr("012345678901"),
+				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
+				AvailableInstanceCount: lo.ToPtr[int32](10),
+				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeCapacityBlock,
+				Interruptible:          lo.ToPtr(false),
+			},
+			ec2types.MarketTypeCapacityBlock,
+		),
+	)
 	DescribeTable(
 		"should set the capacity reservation specification according to the capacity reservation feature flag",
 		func(enabled bool) {

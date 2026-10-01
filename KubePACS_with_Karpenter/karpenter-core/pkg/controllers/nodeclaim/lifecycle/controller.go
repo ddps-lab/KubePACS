@@ -21,11 +21,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
+	resourcev1 "k8s.io/api/resource/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/workqueue"
@@ -48,6 +50,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/metrics"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	"sigs.k8s.io/karpenter/pkg/operator/options"
 	utilscontroller "sigs.k8s.io/karpenter/pkg/utils/controller"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 	"sigs.k8s.io/karpenter/pkg/utils/result"
@@ -63,6 +66,7 @@ const (
 // the cluster as nodes and that they are properly initialized, ensuring that nodeclaims that do not have matching nodes
 // after some liveness TTL are removed
 type Controller struct {
+	clock         clock.Clock
 	kubeClient    client.Client
 	cloudProvider cloudprovider.CloudProvider
 	recorder      events.Recorder
@@ -74,16 +78,17 @@ type Controller struct {
 	liveness       *Liveness
 }
 
-func NewController(clk clock.Clock, kubeClient client.Client, cloudProvider cloudprovider.CloudProvider, recorder events.Recorder, nodePoolState *nodepoolhealth.State) *Controller {
+func NewController(clk clock.Clock, kubeClient client.Client, cloudProvider cloudprovider.CloudProvider, recorder events.Recorder, nodePoolState *nodepoolhealth.State, registrationHooks []cloudprovider.NodeLifecycleHook) *Controller {
 	return &Controller{
+		clock:         clk,
 		kubeClient:    kubeClient,
 		cloudProvider: cloudProvider,
 		recorder:      recorder,
 		nodePoolState: nodePoolState,
 
-		launch:         &Launch{kubeClient: kubeClient, cloudProvider: cloudProvider, cache: cache.New(time.Hour, time.Minute), recorder: recorder},
-		registration:   &Registration{kubeClient: kubeClient, recorder: recorder, npState: nodePoolState},
-		initialization: &Initialization{kubeClient: kubeClient},
+		launch:         &Launch{kubeClient: kubeClient, cloudProvider: cloudProvider, cache: cache.New(time.Hour, time.Minute), recorder: recorder, clock: clk},
+		registration:   &Registration{kubeClient: kubeClient, recorder: recorder, npState: nodePoolState, registrationHooks: registrationHooks, clock: clk},
+		initialization: &Initialization{kubeClient: kubeClient, clock: clk},
 		liveness:       &Liveness{clock: clk, kubeClient: kubeClient, npState: nodePoolState},
 	}
 }
@@ -92,13 +97,22 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 	// higher concurrency limit since we want fast reaction to node syncing and launch
 	maxConcurrentReconciles := utilscontroller.LinearScaleReconciles(utilscontroller.CPUCount(ctx), minReconciles, maxReconciles)
 	qps, bucketSize := utilscontroller.GetTypedBucketConfigs(10, minReconciles, maxConcurrentReconciles)
-	return controllerruntime.NewControllerManagedBy(m).
+	b := controllerruntime.NewControllerManagedBy(m).
 		Named(c.Name()).
 		For(&v1.NodeClaim{}, builder.WithPredicates(nodeclaimutils.IsManagedPredicateFuncs(c.cloudProvider))).
 		Watches(
 			&corev1.Node{},
 			nodeclaimutils.NodeEventHandler(c.kubeClient, c.cloudProvider),
-		).
+		)
+	// When DRA is enabled, watch ResourceSlices so a NodeClaim is re-evaluated for initialization as its DRA drivers
+	// publish their pools. The watch (and its resource.k8s.io RBAC) is only wired up when DRA support is on.
+	if !options.FromContext(ctx).IgnoreDRARequests {
+		b = b.Watches(
+			&resourcev1.ResourceSlice{},
+			nodeclaimutils.ResourceSliceEventHandler(c.kubeClient, c.cloudProvider),
+		)
+	}
+	return b.
 		WithOptions(controller.Options{
 			RateLimiter: workqueue.NewTypedMaxOfRateLimiter[reconcile.Request](
 				// back off until last attempt occurs ~90 seconds before nodeclaim expiration
@@ -172,7 +186,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *v1.NodeClaim) (re
 		// We sleep here after a patch operation since we want to ensure that we are able to read our own writes
 		// so that we avoid duplicating metrics and log lines due to quick re-queues from our node watcher
 		// USE CAUTION when determining whether to increase this timeout or remove this line
-		time.Sleep(time.Second)
+		c.clock.Sleep(time.Second)
 	}
 	if errs != nil {
 		return reconcile.Result{}, errs
@@ -223,7 +237,7 @@ func (c *Controller) finalize(ctx context.Context, nodeClaim *v1.NodeClaim) (rec
 			return reconcile.Result{}, deleteErr
 		}
 		stored := nodeClaim.DeepCopy()
-		nodeClaim.StatusConditions().SetTrue(v1.ConditionTypeInstanceTerminating)
+		nodeClaim.StatusConditions(status.WithClock(c.clock)).SetTrue(v1.ConditionTypeInstanceTerminating)
 		if !equality.Semantic.DeepEqual(stored, nodeClaim) {
 			// We use client.MergeFromWithOptimisticLock because patching a list with a JSON merge patch
 			// can cause races due to the fact that it fully replaces the list on a change
@@ -265,6 +279,7 @@ func (c *Controller) finalize(ctx context.Context, nodeClaim *v1.NodeClaim) (rec
 		metrics.NodeClaimsTerminatedTotal.Inc(map[string]string{
 			metrics.NodePoolLabel:     nodeClaim.Labels[v1.NodePoolLabelKey],
 			metrics.CapacityTypeLabel: nodeClaim.Labels[v1.CapacityTypeLabelKey],
+			metrics.ZoneLabel:         nodeClaim.Labels[corev1.LabelTopologyZone],
 		})
 	}
 	return reconcile.Result{}, nil

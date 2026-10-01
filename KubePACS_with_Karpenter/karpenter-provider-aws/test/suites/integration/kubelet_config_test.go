@@ -86,7 +86,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		})
 		DescribeTable("Linux AMIFamilies",
 			func(alias string) {
-				if strings.Contains(alias, "al2") && env.K8sMinorVersion() > 32 {
+				if strings.HasPrefix(alias, "al2@") && env.K8sMinorVersion() > 32 {
 					Skip("AL2 is not supported on versions > 1.32")
 				}
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
@@ -107,6 +107,10 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		)
 		DescribeTable("Windows AMIFamilies",
 			func(term v1.AMISelectorTerm) {
+				if term.Alias == "windows2025@latest" && env.K8sMinorVersion() < 35 {
+					Skip("Windows 2025 requires EKS 1.35+")
+				}
+
 				env.ExpectWindowsIPAMEnabled()
 				DeferCleanup(func() {
 					env.ExpectWindowsIPAMDisabled()
@@ -118,11 +122,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				// properly scoped
 				test.ReplaceRequirements(nodePool,
 					karpv1.NodeSelectorRequirementWithMinValues{
-						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-							Key:      corev1.LabelOSStable,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{string(corev1.Windows)},
-						},
+						Key:      corev1.LabelOSStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{string(corev1.Windows)},
 					},
 				)
 				pod := test.Pod(test.PodOptions{
@@ -143,6 +145,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			// See: https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go
 			Entry("when the AMIFamily is Windows2019", v1.AMISelectorTerm{Alias: "windows2019@latest"}),
 			Entry("when the AMIFamily is Windows2022", v1.AMISelectorTerm{Alias: "windows2022@latest"}),
+			Entry("when the AMIFamily is Windows2025", v1.AMISelectorTerm{Alias: "windows2025@latest"}),
 		)
 	})
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
@@ -176,11 +179,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// This will have 4 pods available on each node (2 taken by daemonset pods)
 		test.ReplaceRequirements(nodePool,
 			karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceCPU,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"2"},
-				},
+				Key:      v1.LabelInstanceCPU,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"2"},
 			},
 		)
 		numPods := 4
@@ -221,11 +222,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// This would normally schedule to 3 nodes if not using Bottlerocket
 		test.ReplaceRequirements(nodePool,
 			karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceCPU,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"2"},
-				},
+				Key:      v1.LabelInstanceCPU,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"2"},
 			},
 		)
 

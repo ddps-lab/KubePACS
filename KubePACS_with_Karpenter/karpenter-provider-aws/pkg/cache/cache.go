@@ -14,7 +14,23 @@ limitations under the License.
 
 package cache
 
-import "time"
+import (
+	"os"
+	"time"
+)
+
+// UnavailableOfferingsTTL is the time before offerings that were marked as unavailable
+// are removed from the cache and are available for launch again.
+// KubePACS: defaults to 12h (upstream: 3m) so interrupted spot offerings stay excluded during experiments.
+// Override with KUBEPACS_UNAVAILABLE_OFFERINGS_TTL (Go duration, e.g. "3m" to match upstream).
+var UnavailableOfferingsTTL = durationFromEnv("KUBEPACS_UNAVAILABLE_OFFERINGS_TTL", 12*time.Hour)
+
+func durationFromEnv(key string, defaultValue time.Duration) time.Duration {
+	if d, err := time.ParseDuration(os.Getenv(key)); err == nil && d > 0 {
+		return d
+	}
+	return defaultValue
+}
 
 const (
 	// DefaultTTL restricts QPS to AWS APIs to this interval for verifying setup
@@ -24,9 +40,8 @@ const (
 	// AWS APIs, which can have a serious impact on performance and scalability.
 	// DO NOT CHANGE THIS VALUE WITHOUT DUE CONSIDERATION
 	DefaultTTL = time.Minute
-	// UnavailableOfferingsTTL is the time before offerings that were marked as unavailable
-	// are removed from the cache and are available for launch again
-	UnavailableOfferingsTTL = 12 * time.Hour
+	// PlacementGroupAvailabilityTTL is the TTL for resolved placement group data.
+	PlacementGroupAvailabilityTTL = 24 * time.Hour
 	// CapacityReservationAvailabilityTTL is the time we will persist cached capacity availability. Nominally, this is
 	// updated every minute, but we want to persist the data longer in the event of an EC2 API outage. 24 hours was the
 	// compormise made for API outage reseliency and gargage collecting entries for orphaned reservations.
@@ -37,8 +52,6 @@ const (
 	InstanceProfileTTL = 15 * time.Minute
 	// AvailableIPAddressTTL is time to drop AvailableIPAddress data if it is not updated within the TTL
 	AvailableIPAddressTTL = 5 * time.Minute
-	// AvailableIPAddressTTL is time to drop AssociatePublicIPAddressTTL data if it is not updated within the TTL
-	AssociatePublicIPAddressTTL = 5 * time.Minute
 	// SSMGetParametersByPathTTL is the time to drop SSM Parameters by path data. This only queries EKS Optimized AMI
 	// releases, so we should expect this to be updated relatively infrequently.
 	SSMCacheTTL = 24 * time.Hour
@@ -51,6 +64,8 @@ const (
 	RecreationTTL = 1 * time.Minute
 	// ProtectedProfilesTTL is the duration to keep profiles as protected before nodeclass garbagecollector considers deletion
 	ProtectedProfilesTTL = 1 * time.Hour
+	// OverlayPricedTypesTTL is the duration for checking overlays
+	OverlayPricedTypesTTL = 5 * time.Minute
 )
 
 const (

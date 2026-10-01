@@ -70,9 +70,13 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 	}
 }
 
+func (c *Controller) Name() string {
+	return "node.health"
+}
+
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("node.health").
+		Named(c.Name()).
 		For(&corev1.Node{}, builder.WithPredicates(nodeutils.IsManagedPredicateFuncs(c.cloudProvider), predicate.Funcs{
 			UpdateFunc: func(e event.UpdateEvent) bool {
 				oldNode := e.ObjectOld.(*corev1.Node)
@@ -104,7 +108,7 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 }
 
 func (c *Controller) Reconcile(ctx context.Context, node *corev1.Node) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "node.health")
+	ctx = injection.WithControllerName(ctx, c.Name())
 
 	// Validate that the node is owned by us
 	nodeClaim, err := nodeutils.NodeClaimForNode(ctx, c.kubeClient, node)
@@ -192,7 +196,7 @@ func (c *Controller) findUnhealthyConditions(node *corev1.Node) (nc *corev1.Node
 			terminationTime := nodeCondition.LastTransitionTime.Add(policy.TolerationDuration)
 			// Determine requeue time
 			if requeueTime.IsZero() || requeueTime.After(terminationTime) {
-				nc = lo.ToPtr(nodeCondition)
+				nc = new(nodeCondition)
 				cpTerminationDuration = policy.TolerationDuration
 				requeueTime = terminationTime
 			}
@@ -241,12 +245,12 @@ func (c *Controller) areNodesHealthy(ctx context.Context, opts ...client.ListOpt
 	}
 	unhealthyNodeCount := lo.CountBy(nodeList.Items, func(node corev1.Node) bool {
 		_, found := lo.Find(c.cloudProvider.RepairPolicies(), func(policy cloudprovider.RepairPolicy) bool {
-			nodeCondition := nodeutils.GetCondition(lo.ToPtr(node), policy.ConditionType)
+			nodeCondition := nodeutils.GetCondition(new(node), policy.ConditionType)
 			return nodeCondition.Status == policy.ConditionStatus
 		})
 		return found
 	})
-	threshold := lo.Must(intstr.GetScaledValueFromIntOrPercent(lo.ToPtr(allowedUnhealthyPercent), len(nodeList.Items), true))
+	threshold := lo.Must(intstr.GetScaledValueFromIntOrPercent(new(allowedUnhealthyPercent), len(nodeList.Items), true))
 	return unhealthyNodeCount <= threshold, nil
 }
 

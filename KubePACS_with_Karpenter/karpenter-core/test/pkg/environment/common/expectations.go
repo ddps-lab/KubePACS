@@ -17,13 +17,20 @@ limitations under the License.
 package common
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"math"
+	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
+
+	"k8s.io/client-go/transport/spdy"
 
 	"github.com/awslabs/operatorpkg/object"
 	. "github.com/onsi/ginkgo/v2"
@@ -39,7 +46,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -68,7 +77,7 @@ func (env *Environment) ExpectDeleted(objects ...client.Object) {
 	GinkgoHelper()
 	for _, object := range objects {
 		Eventually(func(g Gomega) {
-			g.Expect(client.IgnoreNotFound(env.Client.Delete(env, object, client.PropagationPolicy(metav1.DeletePropagationForeground), &client.DeleteOptions{GracePeriodSeconds: lo.ToPtr(int64(0))}))).To(Succeed())
+			g.Expect(client.IgnoreNotFound(env.Client.Delete(env, object, client.PropagationPolicy(metav1.DeletePropagationForeground), &client.DeleteOptions{GracePeriodSeconds: new(int64(0))}))).To(Succeed())
 		}).WithTimeout(time.Second * 10).Should(Succeed())
 	}
 }
@@ -121,7 +130,7 @@ func (env *Environment) ExpectReplaceNodeClassCondition(nodeclass *unstructured.
 
 	tt, _, _ := unstructured.NestedSlice(result.Object, "status", "conditions")
 	for _, t := range tt {
-		cond := t.(map[string]interface{})
+		cond := t.(map[string]any)
 		if cond["type"].(string) == condition.Type {
 			continue
 		}
@@ -135,8 +144,8 @@ func (env *Environment) ExpectReplaceNodeClassCondition(nodeclass *unstructured.
 		})
 	}
 
-	err := unstructured.SetNestedSlice(result.Object, lo.Map(updateStatusCondition, func(condition metav1.Condition, _ int) interface{} {
-		b := map[string]interface{}{}
+	err := unstructured.SetNestedSlice(result.Object, lo.Map(updateStatusCondition, func(condition metav1.Condition, _ int) any {
+		b := map[string]any{}
 		b["type"] = condition.Type
 		b["reason"] = condition.Reason
 		b["status"] = string(condition.Status)
@@ -726,7 +735,7 @@ func (env *Environment) EventuallyExpectNodesUntaintedWithTimeout(timeout time.D
 	Eventually(func(g Gomega) {
 		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disrupted": "true"})).To(Succeed())
 		taintedNodeNames := lo.Map(nodeList.Items, func(n corev1.Node, _ int) string { return n.Name })
-		g.Expect(taintedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *corev1.Node, _ int) interface{} { return n.Name })...))
+		g.Expect(taintedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *corev1.Node, _ int) any { return n.Name })...))
 	}).WithTimeout(timeout).Should(Succeed())
 }
 
@@ -1261,4 +1270,108 @@ func (env *Environment) GetDaemonSetOverhead(np *v1.NodePool) corev1.ResourceLis
 		}
 		return p, true
 	})...)
+}
+
+type PrometheusMetric struct {
+	Name   string
+	Labels map[string]string
+	Value  float64
+}
+
+func (env *Environment) ExpectPodMetrics() (res []PrometheusMetric) {
+	GinkgoHelper()
+
+	ctx, cancel := context.WithCancel(env.Context)
+	defer cancel()
+
+	localPort := rand.IntnRange(1025, 49151)
+	env.ExpectPodPortForwarded(ctx, env.ExpectActiveKarpenterPod(), 8080, localPort)
+
+	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/metrics", localPort))
+	Expect(err).ToNot(HaveOccurred())
+	reader := bufio.NewReader(resp.Body)
+	defer resp.Body.Close()
+	for {
+		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			//nolint:errorlint
+			if err == io.EOF {
+				break
+			}
+			continue
+		}
+		metric, err := parseMetricsLine(string(line))
+		if err != nil {
+			continue
+		}
+		res = append(res, metric)
+	}
+	return res
+}
+
+var (
+	prometheusMetricRegex = regexp.MustCompile(`(?P<Name>.*){(?P<Labels>.*)} (?P<Value>\d*(?:\.\d*)?)`)
+)
+
+func parseMetricsLine(line string) (metric PrometheusMetric, err error) {
+	groups := prometheusMetricRegex.FindStringSubmatch(line)
+	if len(groups) != 4 {
+		return PrometheusMetric{}, fmt.Errorf("metrics line doesn't match known prometheus syntax")
+	}
+
+	elems := strings.Split(groups[2], ",")
+	l := lo.SliceToMap(elems, func(elem string) (string, string) {
+		temp := strings.Split(elem, "=")
+		k, v := temp[0], temp[1]
+		return k, strings.Trim(v, "\"")
+	})
+	v, err := strconv.ParseFloat(groups[3], 64)
+	if err != nil {
+		return PrometheusMetric{}, fmt.Errorf("converting metrics value to an integer, %w", err)
+	}
+	return PrometheusMetric{Name: groups[1], Labels: l, Value: v}, nil
+}
+
+func (env *Environment) ExpectPodPortForwarded(ctx context.Context, pod *corev1.Pod, podPort, localPort int) {
+	GinkgoHelper()
+
+	roundTripper, upgrader, err := spdy.RoundTripperFor(env.Config)
+	Expect(err).ToNot(HaveOccurred())
+
+	serverURL := env.KubeClient.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Namespace(pod.Namespace).
+		Name(pod.Name).
+		SubResource("portforward").URL()
+
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: roundTripper}, http.MethodPost, serverURL)
+
+	ready := make(chan struct{})
+	stop := make(chan struct{})
+	go func() {
+		GinkgoRecover()
+		<-ctx.Done()
+		close(stop)
+	}()
+	go func() {
+		fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", localPort, podPort)}, stop, ready, io.Discard, io.Discard)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(fw.ForwardPorts())
+	}()
+	<-ready
+}
+
+func (env *Environment) GetNodePoolCost(nodePoolName string) float64 {
+	GinkgoHelper()
+	var cost float64
+	Eventually(func(g Gomega) {
+		defer GinkgoRecover()
+		podMetrics := env.ExpectPodMetrics()
+		priceMetrics := lo.Filter(podMetrics, func(p PrometheusMetric, _ int) bool {
+			return p.Name == "karpenter_nodepools_cost_total" && p.Labels["nodepool"] == nodePoolName
+		})
+		g.Expect(priceMetrics).ToNot(BeEmpty())
+		cost = priceMetrics[0].Value
+	}, 2*time.Minute, time.Second*5).Should(Succeed())
+	return cost
 }

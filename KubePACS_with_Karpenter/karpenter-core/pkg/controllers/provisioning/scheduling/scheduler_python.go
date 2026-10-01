@@ -9,13 +9,15 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
-	"sigs.k8s.io/karpenter/pkg/utils/resources"
+	"sigs.k8s.io/karpenter/pkg/scheduling/dynamicresources"
 )
 
 const (
@@ -29,6 +31,17 @@ type PythonSolverResult struct {
 	InstanceType     string `json:"instance_type"`
 	AvailabilityZone string `json:"availability_zone"`
 	NumInstances     int    `json:"num_instances"`
+}
+
+type allowedInstance struct {
+	InstanceType     string `json:"instance_type"`
+	AvailabilityZone string `json:"availability_zone"`
+}
+
+// kubepacsGroup is the set of pending pods assigned to one KubePACS NodePool.
+type kubepacsGroup struct {
+	template *NodeClaimTemplate
+	pods     []*corev1.Pod
 }
 
 func isKubepacsTemplate(nct *NodeClaimTemplate) bool {
@@ -47,6 +60,66 @@ func podMatchesKubepacsTemplate(p *corev1.Pod, nct *NodeClaimTemplate) bool {
 	}
 
 	return p.Spec.NodeSelector != nil && p.Spec.NodeSelector[kubepacsScenarioInstanceLabel()] == scenarioInstance
+}
+
+// kubepacsTemplateForPod returns the KubePACS NodePool template a pod belongs to, or nil when no KubePACS NodePool can
+// host it. Templates are ordered by NodePool weight, so the highest-weight compatible KubePACS NodePool wins. A pod
+// belongs to a NodePool only when it tolerates the NodePool taints and its requirements are compatible with the
+// NodePool requirements; this keeps pods of one KubePACS NodePool from being solved against another.
+func kubepacsTemplateForPod(p *corev1.Pod, podData *PodData, templates []*NodeClaimTemplate) *NodeClaimTemplate {
+	for _, nct := range templates {
+		if !podMatchesKubepacsTemplate(p, nct) {
+			continue
+		}
+		if err := scheduling.Taints(nct.Spec.Taints).ToleratesPod(p); err != nil {
+			continue
+		}
+		if podData != nil {
+			if err := nct.Requirements.Compatible(podData.Requirements, scheduling.AllowUndefinedWellKnownLabels); err != nil {
+				continue
+			}
+		}
+		return nct
+	}
+	return nil
+}
+
+// groupKubepacsPods splits pods by their KubePACS NodePool, preserving template order. Pods without a KubePACS NodePool
+// are left out and handled by the default scheduler.
+func groupKubepacsPods(pods []*corev1.Pod, podData map[types.UID]*PodData, templates []*NodeClaimTemplate) []*kubepacsGroup {
+	byTemplate := map[*NodeClaimTemplate]*kubepacsGroup{}
+	for _, p := range pods {
+		nct := kubepacsTemplateForPod(p, podData[p.UID], templates)
+		if nct == nil {
+			continue
+		}
+		g, ok := byTemplate[nct]
+		if !ok {
+			g = &kubepacsGroup{template: nct}
+			byTemplate[nct] = g
+		}
+		g.pods = append(g.pods, p)
+	}
+	var groups []*kubepacsGroup
+	for _, nct := range templates {
+		if g, ok := byTemplate[nct]; ok {
+			groups = append(groups, g)
+		}
+	}
+	return groups
+}
+
+// spotAllowedInstances lists the available spot (instance type, zone) offerings of a single NodePool template.
+func spotAllowedInstances(nct *NodeClaimTemplate) []allowedInstance {
+	var allowed []allowedInstance
+	for _, it := range nct.InstanceTypeOptions {
+		for _, offering := range it.Offerings {
+			if offering.Available && offering.CapacityType() == v1.CapacityTypeSpot {
+				allowed = append(allowed, allowedInstance{InstanceType: it.Name, AvailabilityZone: offering.Zone()})
+			}
+		}
+	}
+	return allowed
 }
 
 func kubepacsEnabled() bool {
@@ -81,67 +154,95 @@ func getenvDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
+func kubepacsRegion() string {
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		region = os.Getenv("AWS_DEFAULT_REGION")
+	}
+	if region == "" {
+		region = "us-east-1" // fallback default
+	}
+	return region
+}
+
 func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Results, error) {
 	if len(pods) == 0 {
 		return Results{}, nil
 	}
 
-	// 0. Filter pods that match kubepacs NodePool only
-	// Pods that don't match kubepacs NodePool should be handled by the original Karpenter logic
-	kubepacsPods := []*corev1.Pod{}
-	for _, p := range pods {
-		// Check if this pod matches any kubepacs NodePool
-		matchesKubepacs := false
-		for _, nct := range s.nodeClaimTemplates {
-			if podMatchesKubepacsTemplate(p, nct) {
-				matchesKubepacs = true
-				break
-			}
-		}
-		if matchesKubepacs {
-			kubepacsPods = append(kubepacsPods, p)
-		}
-	}
-
-	// If no pods match kubepacs NodePool, return error to fallback to original logic
-	if len(kubepacsPods) == 0 {
+	// 0. Keep only pods that belong to a KubePACS NodePool.
+	// Pods that don't match any KubePACS NodePool are handled by the original Karpenter logic.
+	groups := groupKubepacsPods(pods, s.cachedPodData, s.nodeClaimTemplates)
+	if len(groups) == 0 {
 		return Results{}, fmt.Errorf("no pods match kubepacs NodePool, fallback to original scheduler")
 	}
-
+	kubepacsPodCount := lo.SumBy(groups, func(g *kubepacsGroup) int { return len(g.pods) })
 	log.FromContext(ctx).Info("Filtered pods for kubepacs",
-		"totalPods", len(pods), "kubepacsPods", len(kubepacsPods))
-	pods = kubepacsPods
+		"totalPods", len(pods), "kubepacsPods", kubepacsPodCount, "kubepacsNodePools", len(groups))
 
 	// 1. First, try to schedule pods to existing nodes (including inflight)
 	// This matches the original Karpenter behavior and prevents over-provisioning
-	remainingPods := []*corev1.Pod{}
-	for _, p := range pods {
-		// Try existing nodes first (Ready + Not Ready inflight nodes)
-		if err := s.addToExistingNode(ctx, p); err != nil {
-			// Try inflight NodeClaims created in this scheduling loop
-			if err := s.addToInflightNode(ctx, p); err != nil {
-				remainingPods = append(remainingPods, p)
+	remaining := 0
+	for _, g := range groups {
+		var left []*corev1.Pod
+		for _, p := range g.pods {
+			// Try existing nodes first (Ready + Not Ready inflight nodes)
+			if err := s.addToExistingNode(ctx, p); err != nil {
+				// Try inflight NodeClaims created in this scheduling loop
+				if err := s.addToInflightNode(ctx, p); err != nil {
+					left = append(left, p)
+				}
 			}
 		}
+		g.pods = left
+		remaining += len(left)
 	}
 
 	// If all pods scheduled to existing/inflight nodes, we're done
-	if len(remainingPods) == 0 {
+	if remaining == 0 {
 		log.FromContext(ctx).Info("All pods scheduled to existing/inflight nodes, skipping Python solver")
-		for _, nc := range s.newNodeClaims {
-			nc.FinalizeScheduling()
-		}
-		return Results{
-			NewNodeClaims: s.newNodeClaims,
-			ExistingNodes: s.existingNodes,
-			PodErrors:     nil,
-		}, nil
+		return s.kubepacsResults(), nil
 	}
 
-	// Use remaining pods for Python solver
+	// 2. Solve each KubePACS NodePool separately, using only that NodePool's offerings
+	for _, g := range groups {
+		if len(g.pods) == 0 {
+			continue
+		}
+		newNodeClaims, err := s.solvePythonForNodePool(ctx, g.template, g.pods)
+		if err != nil {
+			return Results{}, err
+		}
+		s.newNodeClaims = append(s.newNodeClaims, newNodeClaims...)
+	}
+
+	return s.kubepacsResults(), nil
+}
+
+func (s *Scheduler) kubepacsResults() Results {
+	for _, nc := range s.newNodeClaims {
+		nc.FinalizeScheduling(s.draDriversForNodeClaim(nc)...)
+	}
+	results := Results{
+		NewNodeClaims: s.newNodeClaims,
+		ExistingNodes: s.existingNodes,
+		PodErrors:     nil, // Assume all handled or remaining will be retried
+	}
+	if s.allocator != nil {
+		results.DRAClaimAllocationMetadata = lo.MapKeys(
+			s.allocator.ResourceClaimAllocationMetadata(),
+			func(_ *dynamicresources.ResourceClaimAllocationMetadata, k dynamicresources.ResourceClaimID) types.NamespacedName {
+				return k.Value()
+			},
+		)
+	}
+	return results
+}
+
+//nolint:gocyclo
+func (s *Scheduler) solvePythonForNodePool(ctx context.Context, nct *NodeClaimTemplate, pods []*corev1.Pod) ([]*NodeClaim, error) {
 	log.FromContext(ctx).Info("Scheduling remaining pods with Python solver",
-		"totalPods", len(pods), "remainingPods", len(remainingPods))
-	pods = remainingPods
+		"NodePool", nct.NodePoolName, "remainingPods", len(pods))
 
 	// 1. Calculate Pod Requirements (Average)
 	var totalCPU, totalMem float64
@@ -160,44 +261,16 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 		avgMem = 0.1
 	}
 
-	// 2. Prepare Allowed Instances List
-	type AllowedInstance struct {
-		InstanceType     string `json:"instance_type"`
-		AvailabilityZone string `json:"availability_zone"`
-	}
-	var allowedInstances []AllowedInstance
-
-	for _, nct := range s.nodeClaimTemplates {
-		// Only consider templates with the kubepacs strategy
-		if !isKubepacsTemplate(nct) {
-			continue
-		}
-		for _, it := range nct.InstanceTypeOptions {
-			for _, offering := range it.Offerings {
-				if offering.Available && offering.CapacityType() == v1.CapacityTypeSpot {
-					allowedInstances = append(allowedInstances, AllowedInstance{
-						InstanceType:     it.Name,
-						AvailabilityZone: offering.Zone(),
-					})
-				}
-			}
-		}
-	}
-
+	// 2. Prepare Allowed Instances List from this NodePool only
+	allowedInstances := spotAllowedInstances(nct)
 	allowedJson, err := json.Marshal(allowedInstances)
 	if err != nil {
-		return Results{}, fmt.Errorf("failed to marshal allowed instances: %v", err)
+		return nil, fmt.Errorf("failed to marshal allowed instances: %v", err)
 	}
-	log.FromContext(ctx).Info(fmt.Sprintf("Allowed instances count: %d", len(allowedInstances)))
+	log.FromContext(ctx).Info(fmt.Sprintf("Allowed instances count: %d", len(allowedInstances)), "NodePool", nct.NodePoolName)
 
 	// 3. Get AWS Region
-	region := os.Getenv("AWS_REGION")
-	if region == "" {
-		region = os.Getenv("AWS_DEFAULT_REGION")
-	}
-	if region == "" {
-		region = "us-east-1" // fallback default
-	}
+	region := kubepacsRegion()
 	log.FromContext(ctx).Info("Using AWS region for Python solver", "region", region)
 
 	// 4. Call Python Script
@@ -218,62 +291,38 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
-	log.FromContext(ctx).Info("Calling Python solver", "args", cmd.Args)
+	log.FromContext(ctx).Info("Calling Python solver", "NodePool", nct.NodePoolName, "args", cmd.Args)
 	if err := cmd.Run(); err != nil {
-		return Results{}, fmt.Errorf("python script execution failed: %v, stderr: %s", err, stderr.String())
+		return nil, fmt.Errorf("python script execution failed: %v, stderr: %s", err, stderr.String())
 	}
 
 	// 5. Parse Output
 	if stderr.Len() > 0 {
 		log.FromContext(ctx).Info("Python solver stderr", "stderr", stderr.String())
 	}
-	log.FromContext(ctx).Info("Python solver output", "output", out.String())
+	log.FromContext(ctx).Info("Python solver output", "NodePool", nct.NodePoolName, "output", out.String())
 
 	var pythonResults []PythonSolverResult
 	if err := json.Unmarshal(out.Bytes(), &pythonResults); err != nil {
-		return Results{}, fmt.Errorf("failed to parse python output: %v, output: %s", err, out.String())
+		return nil, fmt.Errorf("failed to parse python output: %v, output: %s", err, out.String())
 	}
 
-	// 6. Create NodeClaims
+	// 6. Create NodeClaims from this NodePool's template
 	var newNodeClaims []*NodeClaim
 	podIndex := 0
 
 	for _, res := range pythonResults {
+		chosenIT, ok := lo.Find(nct.InstanceTypeOptions, func(it *cloudprovider.InstanceType) bool { return it.Name == res.InstanceType })
+		if !ok {
+			log.FromContext(ctx).Error(nil, "Instance type from python solver not found in NodePool", "NodePool", nct.NodePoolName, "instanceType", res.InstanceType)
+			continue
+		}
 		for i := 0; i < res.NumInstances; i++ {
-			// Find a matching NodeClaimTemplate and InstanceType
-			var chosenTemplate *NodeClaimTemplate
-			var chosenIT *cloudprovider.InstanceType
-
-			// Find template that supports this instance type
-			for _, nct := range s.nodeClaimTemplates {
-				// Only consider templates with the kubepacs strategy
-				if !isKubepacsTemplate(nct) {
-					continue
-				}
-
-				for _, it := range nct.InstanceTypeOptions {
-					if it.Name == res.InstanceType {
-						chosenTemplate = nct
-						chosenIT = it
-						break
-					}
-				}
-				if chosenTemplate != nil {
-					break
-				}
-			}
-
-			if chosenTemplate == nil {
-				log.FromContext(ctx).Error(nil, "Instance type from python solver not found in templates", "instanceType", res.InstanceType)
-				continue
-			}
-
 			// Create NodeClaim
 			nc := NewNodeClaim(
-				chosenTemplate,
+				nct,
 				s.topology,
-				s.daemonOverhead[chosenTemplate],
-				s.daemonHostPortUsage[chosenTemplate],
+				s.daemonOverheadGroups[nct],
 				[]*cloudprovider.InstanceType{chosenIT},
 				s.reservationManager,
 				s.reservedOfferingMode,
@@ -290,12 +339,10 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 			// Calculate capacity for this node
 			podRequest := s.cachedPodData[pods[0].UID].Requests // Use first pod as representative
 			nodeCapacity := chosenIT.Capacity
-			maxPodsCPU := nodeCapacity.Cpu().MilliValue() / podRequest.Cpu().MilliValue()
-			maxPodsMem := nodeCapacity.Memory().Value() / podRequest.Memory().Value()
-			capacity := int(maxPodsCPU)
-			if int(maxPodsMem) < capacity {
-				capacity = int(maxPodsMem)
-			}
+			// Guard against pods without requests, which would otherwise divide by zero and crash the controller
+			podCPU := max(podRequest.Cpu().MilliValue(), 1)
+			podMem := max(podRequest.Memory().Value(), 1)
+			capacity := int(min(nodeCapacity.Cpu().MilliValue()/podCPU, nodeCapacity.Memory().Value()/podMem))
 
 			podsForNode := []*corev1.Pod{}
 			for j := 0; j < capacity && podIndex < len(pods); j++ {
@@ -304,9 +351,9 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 			}
 
 			for _, p := range podsForNode {
-				r, its, ofs, err := nc.CanAdd(ctx, p, s.cachedPodData[p.UID], false)
+				r, its, ofs, result, err := nc.CanAdd(ctx, p, s.cachedPodData[p.UID], false, s.allocator)
 				if err == nil {
-					nc.Add(p, s.cachedPodData[p.UID], r, its, ofs)
+					nc.Add(ctx, p, s.cachedPodData[p.UID], r, its, ofs, result, s.allocator)
 				} else {
 					log.FromContext(ctx).Error(err, "Failed to add pod to python-selected node")
 				}
@@ -314,18 +361,10 @@ func (s *Scheduler) solvePython(ctx context.Context, pods []*corev1.Pod) (Result
 
 			if len(nc.Pods) > 0 {
 				newNodeClaims = append(newNodeClaims, nc)
-				s.remainingResources[nc.NodePoolName] = resources.Subtract(s.remainingResources[nc.NodePoolName], chosenIT.Capacity)
+				s.remainingResources[nc.NodePoolName] = subtractMax(s.remainingResources[nc.NodePoolName], nc.InstanceTypeOptions)
 			}
 		}
 	}
 
-	for _, nc := range newNodeClaims {
-		nc.FinalizeScheduling()
-	}
-
-	return Results{
-		NewNodeClaims: newNodeClaims,
-		ExistingNodes: s.existingNodes,
-		PodErrors:     nil, // Assume all handled or remaining will be retried
-	}, nil
+	return newNodeClaims, nil
 }

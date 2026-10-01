@@ -29,7 +29,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
-	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
@@ -43,6 +42,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/kwok/apis/v1alpha1"
+	kwokutils "sigs.k8s.io/karpenter/kwok/utils"
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -150,7 +150,7 @@ func (c *Client) ReadBackup(ctx context.Context) {
 //nolint:gocyclo
 func (c *Client) backupInstances(ctx context.Context) error {
 	var instances []ec2types.Instance
-	c.instances.Range(func(k, v interface{}) bool {
+	c.instances.Range(func(k, v any) bool {
 		instances = append(instances, v.(ec2types.Instance))
 		return true
 	})
@@ -222,6 +222,7 @@ func (c *Client) backupInstances(ctx context.Context) error {
 			}
 		}
 		stored := cm.DeepCopy()
+		//nolint:gosec
 		cm.Data = map[string]string{"instances": string(removeNullFields(lo.Must(json.Marshal(lo.Slice(instances, i*500, (i+1)*500)))))}
 		if !equality.Semantic.DeepEqual(cm, stored) {
 			if err := c.kubeClient.Patch(ctx, cm, client.MergeFrom(stored)); err != nil {
@@ -281,7 +282,7 @@ func (c *Client) StartKillNodeThread(ctx context.Context) {
 }
 
 func removeNullFields(bytes []byte) []byte {
-	var mapSlice []map[string]interface{}
+	var mapSlice []map[string]any
 	lo.Must0(json.Unmarshal(bytes, &mapSlice))
 	for _, elem := range mapSlice {
 		for k, v := range elem {
@@ -338,7 +339,7 @@ func (c *Client) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 	for _, filter := range input.Filters {
 		switch lo.FromPtr(filter.Name) {
 		case "create-time":
-			c.launchTemplates.Range(func(k, v interface{}) bool {
+			c.launchTemplates.Range(func(k, v any) bool {
 				lt := v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
 				for _, value := range filter.Values {
 					if lo.FromPtr(lt.A.CreateTime).Equal(lo.Must(time.Parse(time.RFC3339, value))) {
@@ -348,7 +349,7 @@ func (c *Client) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 				return true
 			})
 		case "launch-template-name":
-			c.launchTemplates.Range(func(k, v interface{}) bool {
+			c.launchTemplates.Range(func(k, v any) bool {
 				lt := v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
 				for _, value := range filter.Values {
 					if lo.FromPtr(lt.A.LaunchTemplateName) == value {
@@ -358,7 +359,7 @@ func (c *Client) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 				return true
 			})
 		case "tag-key":
-			c.launchTemplates.Range(func(k, v interface{}) bool {
+			c.launchTemplates.Range(func(k, v any) bool {
 				lt := v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
 				for _, value := range filter.Values {
 					for _, t := range lt.A.Tags {
@@ -373,7 +374,7 @@ func (c *Client) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 			// This looks for a tag with a specific value
 			if strings.Contains(lo.FromPtr(filter.Name), "tag:") {
 				key := strings.Split(lo.FromPtr(filter.Name), "tag:")[1]
-				c.launchTemplates.Range(func(k, v interface{}) bool {
+				c.launchTemplates.Range(func(k, v any) bool {
 					lt := v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
 					for _, value := range filter.Values {
 						for _, t := range lt.A.Tags {
@@ -707,7 +708,7 @@ func (c *Client) DescribeInstances(_ context.Context, input *ec2.DescribeInstanc
 			instances = append(instances, raw.(ec2types.Instance))
 		}
 	} else {
-		c.instances.Range(func(k, v interface{}) bool {
+		c.instances.Range(func(k, v any) bool {
 			instances = append(instances, v.(ec2types.Instance))
 			return true
 		})
@@ -906,11 +907,13 @@ func (c *Client) toNode(ctx context.Context, instance ec2types.Instance) *corev1
 		nil,
 		nil,
 		nil,
+		nil,
 		// TODO: Eventually support different AMIFamilies from userData
 		"al2023",
 		nil,
 	)
-	nodeName := fmt.Sprintf("%s-%d", strings.ReplaceAll(namesgenerator.GetRandomName(0), "_", "-"), rand.Uint32()) //nolint:gosec
+	nodeName := fmt.Sprintf("kwok-%s-%d", kwokutils.RandomName(), rand.Uint32()) //nolint:gosec
+
 	return &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,

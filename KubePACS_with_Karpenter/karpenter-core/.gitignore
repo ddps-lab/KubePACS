@@ -14,3 +14,10 @@ bin/
 .idea
 .vscode
 .DS_Store
+.kiro*
+.claude*
+
+# Vim swap files
+*.swp
+*.swo
+*~

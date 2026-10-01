@@ -21,9 +21,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -32,7 +34,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/metrics"
-	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
 
 type Launch struct {
@@ -40,12 +41,13 @@ type Launch struct {
 	cloudProvider cloudprovider.CloudProvider
 	cache         *cache.Cache // exists due to eventual consistency on the cache
 	recorder      events.Recorder
+	clock         clock.Clock
 }
 
 func (l *Launch) Reconcile(ctx context.Context, nodeClaim *v1.NodeClaim) (reconcile.Result, error) {
 	if cond := nodeClaim.StatusConditions().Get(v1.ConditionTypeLaunched); !cond.IsUnknown() {
 		// Ensure that we always set the status condition to the latest generation
-		nodeClaim.StatusConditions().Set(*cond)
+		nodeClaim.StatusConditions(status.WithClock(l.clock)).Set(*cond)
 		if cond.IsTrue() {
 			// Once the NodeClaim has successfully marked as launched, we no longer need to store it
 			l.cache.Delete(string(nodeClaim.UID))
@@ -72,7 +74,7 @@ func (l *Launch) Reconcile(ctx context.Context, nodeClaim *v1.NodeClaim) (reconc
 	}
 	l.cache.SetDefault(string(nodeClaim.UID), created)
 	nodeClaim = PopulateNodeClaimDetails(nodeClaim, created)
-	nodeClaim.StatusConditions().SetTrue(v1.ConditionTypeLaunched)
+	nodeClaim.StatusConditions(status.WithClock(l.clock)).SetTrue(v1.ConditionTypeLaunched)
 	return reconcile.Result{}, nil
 }
 
@@ -107,9 +109,9 @@ func (l *Launch) launchNodeClaim(ctx context.Context, nodeClaim *v1.NodeClaim) (
 		default:
 			var createError *cloudprovider.CreateError
 			if errors.As(err, &createError) {
-				nodeClaim.StatusConditions().SetUnknownWithReason(v1.ConditionTypeLaunched, createError.ConditionReason, createError.ConditionMessage)
+				nodeClaim.StatusConditions(status.WithClock(l.clock)).SetUnknownWithReason(v1.ConditionTypeLaunched, createError.ConditionReason, createError.ConditionMessage)
 			} else {
-				nodeClaim.StatusConditions().SetUnknownWithReason(v1.ConditionTypeLaunched, "LaunchFailed", truncateMessage(err.Error()))
+				nodeClaim.StatusConditions(status.WithClock(l.clock)).SetUnknownWithReason(v1.ConditionTypeLaunched, "LaunchFailed", truncateMessage(err.Error()))
 			}
 			return nil, fmt.Errorf("launching nodeclaim, %w", err)
 		}
@@ -128,7 +130,6 @@ func PopulateNodeClaimDetails(nodeClaim, retrieved *v1.NodeClaim) *v1.NodeClaim 
 	// or the static nodeClaim labels
 	nodeClaim.Labels = lo.Assign(
 		retrieved.Labels, // CloudProvider-resolved labels
-		scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Labels(), // Single-value requirement resolved labels
 		nodeClaim.Labels, // User-defined labels
 	)
 	nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, retrieved.Annotations)

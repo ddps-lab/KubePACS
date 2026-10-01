@@ -55,12 +55,22 @@ type Provider interface {
 // relative ordering that is still more accurate than our previous pricing model.  In the event that a pricing update
 // fails, the previous pricing information is retained and used which may be the static initial pricing data if pricing
 // updates never succeed.
+type ProviderOption func(*DefaultProvider)
+
+// WithSkipRegionCheck disables the region-based skip for GovCloud check.
+// This is used by the codegen script which calls the Pricing API from us-east-1 to fetch
+// pricing for all regions including GovCloud.
+func WithSkipRegionCheck() ProviderOption {
+	return func(p *DefaultProvider) { p.skipRegionCheck = true }
+}
+
 type DefaultProvider struct {
-	ec2         sdk.EC2API
-	pricing     sdk.PricingAPI
-	region      string
-	isolatedVPC bool
-	cm          *pretty.ChangeMonitor
+	ec2             sdk.EC2API
+	pricing         sdk.PricingAPI
+	region          string
+	isolatedVPC     bool
+	skipRegionCheck bool
+	cm              *pretty.ChangeMonitor
 
 	muOnDemand     sync.RWMutex
 	onDemandPrices map[ec2types.InstanceType]float64
@@ -117,13 +127,16 @@ func NewAPI(cfg aws.Config) *pricing.Client {
 	return pricing.NewFromConfig(pricingCfg)
 }
 
-func NewDefaultProvider(pricing sdk.PricingAPI, ec2Api sdk.EC2API, region string, isolatedVPC bool) *DefaultProvider {
+func NewDefaultProvider(pricing sdk.PricingAPI, ec2Api sdk.EC2API, region string, isolatedVPC bool, opts ...ProviderOption) *DefaultProvider {
 	p := &DefaultProvider{
 		region:      region,
 		ec2:         ec2Api,
 		pricing:     pricing,
 		cm:          pretty.NewChangeMonitor(),
 		isolatedVPC: isolatedVPC,
+	}
+	for _, opt := range opts {
+		opt(p)
 	}
 	// sets the pricing data from the static default state for the provider
 	p.Reset()
@@ -184,7 +197,7 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 		return nil
 	}
 
-	if strings.HasPrefix(p.region, "us-gov") {
+	if !p.skipRegionCheck && strings.HasPrefix(p.region, "us-gov") {
 		if p.cm.HasChanged("on-demand-prices", nil) {
 			log.FromContext(ctx).V(1).Info("pricing APIs aren't available in AWS GovCloud regions, on-demand pricing information will not be updated")
 		}
@@ -194,9 +207,7 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 	p.muOnDemand.Lock()
 	defer p.muOnDemand.Unlock()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		onDemandPrices, onDemandErr = p.fetchOnDemandPricing(ctx,
 			pricingtypes.Filter{
 				Field: aws.String("tenancy"),
@@ -208,12 +219,10 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 				Type:  "TERM_MATCH",
 				Value: aws.String("Compute Instance"),
 			})
-	}()
+	})
 
 	// bare metal on-demand prices
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		onDemandMetalPrices, onDemandMetalErr = p.fetchOnDemandPricing(ctx,
 			pricingtypes.Filter{
 				Field: aws.String("tenancy"),
@@ -225,7 +234,7 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 				Type:  "TERM_MATCH",
 				Value: aws.String("Compute Instance (bare metal)"),
 			})
-	}()
+	})
 
 	wg.Wait()
 
@@ -329,7 +338,7 @@ func (p *DefaultProvider) spotPage(ctx context.Context, output *ec2.DescribeSpot
 }
 
 // turning off cyclo here, it measures as a 12 due to all of the type checks of the pricing data which returns a deeply
-// nested map[string]interface{}
+// nested map[string]any
 // nolint: gocyclo
 func (p *DefaultProvider) onDemandPage(ctx context.Context, output *pricing.GetProductsOutput) map[ec2types.InstanceType]float64 {
 	// this isn't the full pricing struct, just the portions we care about

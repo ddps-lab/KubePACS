@@ -52,6 +52,7 @@ var _ = Describe("Options", func() {
 		"KUBE_CLIENT_QPS",
 		"KUBE_CLIENT_BURST",
 		"ENABLE_PROFILING",
+		"DISABLE_CONTROLLER_WARMUP",
 		"DISABLE_LEADER_ELECTION",
 		"DISABLE_CLUSTER_STATE_OBSERVABILITY",
 		"LEADER_ELECTION_NAMESPACE",
@@ -100,32 +101,34 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs)
 			Expect(err).To(BeNil())
 			expectOptionsMatch(opts, test.Options(test.OptionsFields{
-				ServiceName:                      lo.ToPtr(""),
-				MetricsPort:                      lo.ToPtr(8080),
-				HealthProbePort:                  lo.ToPtr(8081),
-				KubeClientQPS:                    lo.ToPtr(200),
-				KubeClientBurst:                  lo.ToPtr(300),
-				EnableProfiling:                  lo.ToPtr(false),
-				DisableLeaderElection:            lo.ToPtr(false),
-				DisableClusterStateObservability: lo.ToPtr(false),
-				LeaderElectionName:               lo.ToPtr("karpenter-leader-election"),
-				LeaderElectionNamespace:          lo.ToPtr(""),
+				ServiceName:                      new(""),
+				MetricsPort:                      new(8080),
+				HealthProbePort:                  new(8081),
+				KubeClientQPS:                    new(200),
+				KubeClientBurst:                  new(300),
+				EnableProfiling:                  new(false),
+				DisableControllerWarmup:          new(true),
+				DisableLeaderElection:            new(false),
+				DisableClusterStateObservability: new(false),
+				LeaderElectionName:               new("karpenter-leader-election"),
+				LeaderElectionNamespace:          new(""),
 				MemoryLimit:                      lo.ToPtr[int64](-1),
-				LogLevel:                         lo.ToPtr("info"),
-				LogOutputPaths:                   lo.ToPtr("stdout"),
-				LogErrorOutputPaths:              lo.ToPtr("stderr"),
+				LogLevel:                         new("info"),
+				LogOutputPaths:                   new("stdout"),
+				LogErrorOutputPaths:              new("stderr"),
 				BatchMaxDuration:                 lo.ToPtr(10 * time.Second),
 				BatchIdleDuration:                lo.ToPtr(time.Second),
 				PreferencePolicy:                 lo.ToPtr(options.PreferencePolicyRespect),
 				MinValuesPolicy:                  lo.ToPtr(options.MinValuesPolicyStrict),
 				FeatureGates: test.FeatureGates{
-					ReservedCapacity:        lo.ToPtr(true),
-					NodeRepair:              lo.ToPtr(false),
-					SpotToSpotConsolidation: lo.ToPtr(false),
-					NodeOverlay:             lo.ToPtr(false),
-					StaticCapacity:          lo.ToPtr(false),
+					ReservedCapacity:        new(true),
+					NodeRepair:              new(false),
+					SpotToSpotConsolidation: new(false),
+					NodeOverlay:             new(false),
+					StaticCapacity:          new(false),
+					CapacityBuffer:          new(false),
 				},
-				IgnoreDRARequests: lo.ToPtr(true),
+				IgnoreDRARequests: new(true),
 			}))
 		})
 
@@ -140,6 +143,7 @@ var _ = Describe("Options", func() {
 				"--kube-client-qps", "0",
 				"--kube-client-burst", "0",
 				"--enable-profiling",
+				"--disable-controller-warmup=false",
 				"--disable-leader-election=true",
 				"--disable-cluster-state-observability=true",
 				"--leader-election-name=karpenter-controller",
@@ -152,36 +156,38 @@ var _ = Describe("Options", func() {
 				"--batch-idle-duration", "5s",
 				"--preference-policy", "Ignore",
 				"--min-values-policy", "BestEffort",
-				"--feature-gates", "ReservedCapacity=false,SpotToSpotConsolidation=true,NodeRepair=true,NodeOverlay=true,StaticCapacity=true",
+				"--feature-gates", "ReservedCapacity=false,SpotToSpotConsolidation=true,NodeRepair=true,NodeOverlay=true,StaticCapacity=true,CapacityBuffer=true",
 			)
 			Expect(err).To(BeNil())
 			expectOptionsMatch(opts, test.Options(test.OptionsFields{
-				ServiceName:                      lo.ToPtr("cli"),
-				MetricsPort:                      lo.ToPtr(0),
-				HealthProbePort:                  lo.ToPtr(0),
-				KubeClientQPS:                    lo.ToPtr(0),
-				KubeClientBurst:                  lo.ToPtr(0),
-				EnableProfiling:                  lo.ToPtr(true),
-				DisableLeaderElection:            lo.ToPtr(true),
-				DisableClusterStateObservability: lo.ToPtr(true),
-				LeaderElectionName:               lo.ToPtr("karpenter-controller"),
-				LeaderElectionNamespace:          lo.ToPtr("karpenter"),
+				ServiceName:                      new("cli"),
+				MetricsPort:                      new(0),
+				HealthProbePort:                  new(0),
+				KubeClientQPS:                    new(0),
+				KubeClientBurst:                  new(0),
+				EnableProfiling:                  new(true),
+				DisableControllerWarmup:          new(false),
+				DisableLeaderElection:            new(true),
+				DisableClusterStateObservability: new(true),
+				LeaderElectionName:               new("karpenter-controller"),
+				LeaderElectionNamespace:          new("karpenter"),
 				MemoryLimit:                      lo.ToPtr[int64](0),
-				LogLevel:                         lo.ToPtr("debug"),
-				LogOutputPaths:                   lo.ToPtr("/etc/k8s/test"),
-				LogErrorOutputPaths:              lo.ToPtr("/etc/k8s/testerror"),
+				LogLevel:                         new("debug"),
+				LogOutputPaths:                   new("/etc/k8s/test"),
+				LogErrorOutputPaths:              new("/etc/k8s/testerror"),
 				BatchMaxDuration:                 lo.ToPtr(5 * time.Second),
 				BatchIdleDuration:                lo.ToPtr(5 * time.Second),
 				PreferencePolicy:                 lo.ToPtr(options.PreferencePolicyIgnore),
 				MinValuesPolicy:                  lo.ToPtr(options.MinValuesPolicyBestEffort),
 				FeatureGates: test.FeatureGates{
-					ReservedCapacity:        lo.ToPtr(false),
-					NodeRepair:              lo.ToPtr(true),
-					SpotToSpotConsolidation: lo.ToPtr(true),
-					NodeOverlay:             lo.ToPtr(true),
-					StaticCapacity:          lo.ToPtr(true),
+					ReservedCapacity:        new(false),
+					NodeRepair:              new(true),
+					SpotToSpotConsolidation: new(true),
+					NodeOverlay:             new(true),
+					StaticCapacity:          new(true),
+					CapacityBuffer:          new(true),
 				},
-				IgnoreDRARequests: lo.ToPtr(true),
+				IgnoreDRARequests: new(true),
 			}))
 		})
 
@@ -192,6 +198,7 @@ var _ = Describe("Options", func() {
 			os.Setenv("KUBE_CLIENT_QPS", "0")
 			os.Setenv("KUBE_CLIENT_BURST", "0")
 			os.Setenv("ENABLE_PROFILING", "true")
+			os.Setenv("DISABLE_CONTROLLER_WARMUP", "false")
 			os.Setenv("DISABLE_LEADER_ELECTION", "true")
 			os.Setenv("DISABLE_CLUSTER_STATE_OBSERVABILITY", "true")
 			os.Setenv("LEADER_ELECTION_NAME", "karpenter-controller")
@@ -204,7 +211,7 @@ var _ = Describe("Options", func() {
 			os.Setenv("BATCH_IDLE_DURATION", "5s")
 			os.Setenv("PREFERENCE_POLICY", "Ignore")
 			os.Setenv("MIN_VALUES_POLICY", "BestEffort")
-			os.Setenv("FEATURE_GATES", "ReservedCapacity=false,SpotToSpotConsolidation=true,NodeRepair=true,NodeOverlay=true,StaticCapacity=true")
+			os.Setenv("FEATURE_GATES", "ReservedCapacity=false,SpotToSpotConsolidation=true,NodeRepair=true,NodeOverlay=true,StaticCapacity=true,CapacityBuffer=true")
 			fs = &options.FlagSet{
 				FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError),
 			}
@@ -212,32 +219,34 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs)
 			Expect(err).To(BeNil())
 			expectOptionsMatch(opts, test.Options(test.OptionsFields{
-				ServiceName:                      lo.ToPtr("env"),
-				MetricsPort:                      lo.ToPtr(0),
-				HealthProbePort:                  lo.ToPtr(0),
-				KubeClientQPS:                    lo.ToPtr(0),
-				KubeClientBurst:                  lo.ToPtr(0),
-				EnableProfiling:                  lo.ToPtr(true),
-				DisableLeaderElection:            lo.ToPtr(true),
-				DisableClusterStateObservability: lo.ToPtr(true),
-				LeaderElectionName:               lo.ToPtr("karpenter-controller"),
-				LeaderElectionNamespace:          lo.ToPtr("karpenter"),
+				ServiceName:                      new("env"),
+				MetricsPort:                      new(0),
+				HealthProbePort:                  new(0),
+				KubeClientQPS:                    new(0),
+				KubeClientBurst:                  new(0),
+				EnableProfiling:                  new(true),
+				DisableControllerWarmup:          new(false),
+				DisableLeaderElection:            new(true),
+				DisableClusterStateObservability: new(true),
+				LeaderElectionName:               new("karpenter-controller"),
+				LeaderElectionNamespace:          new("karpenter"),
 				MemoryLimit:                      lo.ToPtr[int64](0),
-				LogLevel:                         lo.ToPtr("debug"),
-				LogOutputPaths:                   lo.ToPtr("/etc/k8s/test"),
-				LogErrorOutputPaths:              lo.ToPtr("/etc/k8s/testerror"),
+				LogLevel:                         new("debug"),
+				LogOutputPaths:                   new("/etc/k8s/test"),
+				LogErrorOutputPaths:              new("/etc/k8s/testerror"),
 				BatchMaxDuration:                 lo.ToPtr(5 * time.Second),
 				BatchIdleDuration:                lo.ToPtr(5 * time.Second),
 				PreferencePolicy:                 lo.ToPtr(options.PreferencePolicyIgnore),
 				MinValuesPolicy:                  lo.ToPtr(options.MinValuesPolicyBestEffort),
 				FeatureGates: test.FeatureGates{
-					ReservedCapacity:        lo.ToPtr(false),
-					NodeRepair:              lo.ToPtr(true),
-					SpotToSpotConsolidation: lo.ToPtr(true),
-					NodeOverlay:             lo.ToPtr(true),
-					StaticCapacity:          lo.ToPtr(true),
+					ReservedCapacity:        new(false),
+					NodeRepair:              new(true),
+					SpotToSpotConsolidation: new(true),
+					NodeOverlay:             new(true),
+					StaticCapacity:          new(true),
+					CapacityBuffer:          new(true),
 				},
-				IgnoreDRARequests: lo.ToPtr(true),
+				IgnoreDRARequests: new(true),
 			}))
 		})
 
@@ -247,6 +256,7 @@ var _ = Describe("Options", func() {
 			os.Setenv("KUBE_CLIENT_QPS", "0")
 			os.Setenv("KUBE_CLIENT_BURST", "0")
 			os.Setenv("ENABLE_PROFILING", "true")
+			os.Setenv("DISABLE_CONTROLLER_WARMUP", "false")
 			os.Setenv("DISABLE_LEADER_ELECTION", "true")
 			os.Setenv("DISABLE_CLUSTER_STATE_OBSERVABILITY", "true")
 			os.Setenv("MEMORY_LIMIT", "0")
@@ -255,7 +265,7 @@ var _ = Describe("Options", func() {
 			os.Setenv("BATCH_IDLE_DURATION", "5s")
 			os.Setenv("PREFERENCE_POLICY", "Ignore")
 			os.Setenv("MIN_VALUES_POLICY", "BestEffort")
-			os.Setenv("FEATURE_GATES", "ReservedCapacity=false,SpotToSpotConsolidation=true,NodeRepair=true,NodeOverlay=true,StaticCapacity=true")
+			os.Setenv("FEATURE_GATES", "ReservedCapacity=false,SpotToSpotConsolidation=true,NodeRepair=true,NodeOverlay=true,StaticCapacity=true,CapacityBuffer=true")
 			fs = &options.FlagSet{
 				FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError),
 			}
@@ -270,32 +280,34 @@ var _ = Describe("Options", func() {
 			)
 			Expect(err).To(BeNil())
 			expectOptionsMatch(opts, test.Options(test.OptionsFields{
-				ServiceName:                      lo.ToPtr("cli"),
-				MetricsPort:                      lo.ToPtr(0),
-				HealthProbePort:                  lo.ToPtr(0),
-				KubeClientQPS:                    lo.ToPtr(0),
-				KubeClientBurst:                  lo.ToPtr(0),
-				EnableProfiling:                  lo.ToPtr(true),
-				DisableLeaderElection:            lo.ToPtr(true),
-				DisableClusterStateObservability: lo.ToPtr(true),
-				LeaderElectionName:               lo.ToPtr("karpenter-leader-election"),
-				LeaderElectionNamespace:          lo.ToPtr(""),
+				ServiceName:                      new("cli"),
+				MetricsPort:                      new(0),
+				HealthProbePort:                  new(0),
+				KubeClientQPS:                    new(0),
+				KubeClientBurst:                  new(0),
+				EnableProfiling:                  new(true),
+				DisableControllerWarmup:          new(false),
+				DisableLeaderElection:            new(true),
+				DisableClusterStateObservability: new(true),
+				LeaderElectionName:               new("karpenter-leader-election"),
+				LeaderElectionNamespace:          new(""),
 				MemoryLimit:                      lo.ToPtr[int64](0),
-				LogLevel:                         lo.ToPtr("debug"),
-				LogOutputPaths:                   lo.ToPtr("/etc/k8s/test"),
-				LogErrorOutputPaths:              lo.ToPtr("/etc/k8s/testerror"),
+				LogLevel:                         new("debug"),
+				LogOutputPaths:                   new("/etc/k8s/test"),
+				LogErrorOutputPaths:              new("/etc/k8s/testerror"),
 				BatchMaxDuration:                 lo.ToPtr(5 * time.Second),
 				BatchIdleDuration:                lo.ToPtr(5 * time.Second),
 				PreferencePolicy:                 lo.ToPtr(options.PreferencePolicyRespect),
 				MinValuesPolicy:                  lo.ToPtr(options.MinValuesPolicyStrict),
 				FeatureGates: test.FeatureGates{
-					ReservedCapacity:        lo.ToPtr(false),
-					NodeRepair:              lo.ToPtr(true),
-					SpotToSpotConsolidation: lo.ToPtr(true),
-					NodeOverlay:             lo.ToPtr(true),
-					StaticCapacity:          lo.ToPtr(true),
+					ReservedCapacity:        new(false),
+					NodeRepair:              new(true),
+					SpotToSpotConsolidation: new(true),
+					NodeOverlay:             new(true),
+					StaticCapacity:          new(true),
+					CapacityBuffer:          new(true),
 				},
-				IgnoreDRARequests: lo.ToPtr(true),
+				IgnoreDRARequests: new(true),
 			}))
 		})
 
@@ -303,7 +315,7 @@ var _ = Describe("Options", func() {
 			"should correctly set defaults when a subset of FeatureGates are specified",
 			func(gate string) {
 				expected, args := func() (options.FeatureGates, []string) {
-					expected := lo.ToPtr(options.DefaultFeatureGates())
+					expected := new(options.DefaultFeatureGates())
 
 					// Use reflection to find the field for the gate and flip the value
 					gateField := reflect.ValueOf(expected).Elem().FieldByName(gate)
@@ -327,6 +339,7 @@ var _ = Describe("Options", func() {
 			Entry("when SpotToSpotConsolidation is overridden", "SpotToSpotConsolidation"),
 			Entry("when NodeOverlay is overridden", "NodeOverlay"),
 			Entry("when StaticCapacity is overridden", "StaticCapacity"),
+			Entry("when CapacityBuffer is overridden", "CapacityBuffer"),
 		)
 	})
 
@@ -381,6 +394,7 @@ func expectOptionsMatch(optsA, optsB *options.Options) {
 	Expect(optsA.KubeClientQPS).To(Equal(optsB.KubeClientQPS))
 	Expect(optsA.KubeClientBurst).To(Equal(optsB.KubeClientBurst))
 	Expect(optsA.EnableProfiling).To(Equal(optsB.EnableProfiling))
+	Expect(optsA.DisableControllerWarmup).To(Equal(optsB.DisableControllerWarmup))
 	Expect(optsA.DisableLeaderElection).To(Equal(optsB.DisableLeaderElection))
 	Expect(optsA.DisableClusterStateObservability).To(Equal(optsB.DisableClusterStateObservability))
 	Expect(optsA.MemoryLimit).To(Equal(optsB.MemoryLimit))
@@ -395,6 +409,7 @@ func expectOptionsMatch(optsA, optsB *options.Options) {
 	Expect(optsA.FeatureGates.NodeRepair).To(Equal(optsB.FeatureGates.NodeRepair))
 	Expect(optsA.FeatureGates.NodeOverlay).To(Equal(optsB.FeatureGates.NodeOverlay))
 	Expect(optsA.FeatureGates.StaticCapacity).To(Equal(optsB.FeatureGates.StaticCapacity))
+	Expect(optsA.FeatureGates.CapacityBuffer).To(Equal(optsB.FeatureGates.CapacityBuffer))
 	Expect(optsA.FeatureGates.SpotToSpotConsolidation).To(Equal(optsB.FeatureGates.SpotToSpotConsolidation))
 	Expect(optsA.IgnoreDRARequests).To(Equal(optsB.IgnoreDRARequests))
 }

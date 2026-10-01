@@ -80,11 +80,13 @@ func (d *DefaultResolver) CacheKey(nodeClass NodeClass) string {
 	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.BlockDeviceMappings(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	capacityReservationHash, _ := hashstructure.Hash(nodeClass.CapacityReservations(), hashstructure.FormatV2, nil)
+	networkInterfaceHash, _ := hashstructure.Hash(nodeClass.NetworkInterfaces(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	return fmt.Sprintf(
-		"%016x-%016x-%016x-%s-%s",
+		"%016x-%016x-%016x-%016x-%s-%s",
 		kcHash,
 		blockDeviceMappingsHash,
 		capacityReservationHash,
+		networkInterfaceHash,
 		lo.FromPtr((*string)(nodeClass.InstanceStorePolicy())),
 		nodeClass.AMIFamily(),
 	)
@@ -107,6 +109,7 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		nodeClass.ZoneInfo(),
 		nodeClass.BlockDeviceMappings(),
 		nodeClass.InstanceStorePolicy(),
+		nodeClass.NetworkInterfaces(),
 		kc.MaxPods,
 		kc.PodsPerCore,
 		kc.KubeReserved,
@@ -128,6 +131,7 @@ func NewInstanceType(
 	subnetZoneInfo []v1.ZoneInfo,
 	blockDeviceMappings []*v1.BlockDeviceMapping,
 	instanceStorePolicy *v1.InstanceStorePolicy,
+	networkInterfaces []*v1.NetworkInterface,
 	maxPods *int32,
 	podsPerCore *int32,
 	kubeReserved map[string]string,
@@ -141,11 +145,12 @@ func NewInstanceType(
 	it := &cloudprovider.InstanceType{
 		Name:         string(info.InstanceType),
 		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations),
-		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
+		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, networkInterfaces, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead, ENILimitedPods(ctx, info, 0), pods(ctx, info, amiFamily, maxPods, podsPerCore)), kubeReserved),
+			KubeReserved: kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
+				ENILimitedPods(ctx, info, 0, networkInterfaces), pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces)), kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
-			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
+			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), evictionHard),
 		},
 	}
 	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)))) == nil {
@@ -212,6 +217,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceEncryptionInTransitSupported, corev1.NodeSelectorOpIn, fmt.Sprint(aws.ToBool(info.NetworkInfo.EncryptionInTransitSupported))),
 		scheduling.NewRequirement(v1.LabelInstanceTenancy, corev1.NodeSelectorOpIn, string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)),
 	)
+
 	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a
 	// previous version of Karpenter w/o zone-id support and the nodeclass subnet status has not yet updated.
 	if zoneIDs := lo.FilterMap(subnetZoneInfo, func(info v1.ZoneInfo, _ int) (string, bool) {
@@ -229,9 +235,13 @@ func computeRequirements(
 		requirements.Add(scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpIn, lo.Map(capacityReservations, func(cr v1.CapacityReservation, _ int) string {
 			return string(cr.ReservationType)
 		})...))
+		requirements.Add(scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpIn, lo.Map(capacityReservations, func(cr v1.CapacityReservation, _ int) string {
+			return fmt.Sprintf("%t", cr.Interruptible)
+		})...))
 	} else {
 		requirements.Add(scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpDoesNotExist))
 		requirements.Add(scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpDoesNotExist))
+		requirements.Add(scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpDoesNotExist))
 	}
 	// Instance Type Labels
 	instanceFamilyParts := instanceTypeScheme.FindStringSubmatch(string(info.InstanceType))
@@ -296,6 +306,7 @@ func computeRequirements(
 	if info.EbsInfo != nil && info.EbsInfo.EbsOptimizedInfo != nil && info.EbsInfo.EbsOptimizedSupport == ec2types.EbsOptimizedSupportDefault {
 		requirements.Get(v1.LabelInstanceEBSBandwidth).Insert(fmt.Sprint(lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumBandwidthInMbps)))
 	}
+
 	return requirements
 }
 
@@ -320,20 +331,20 @@ func getArchitecture(info ec2types.InstanceTypeInfo) string {
 
 func computeCapacity(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 	blockDeviceMapping []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy,
-	maxPods *int32, podsPerCore *int32) corev1.ResourceList {
+	networkInterfaces []*v1.NetworkInterface, maxPods *int32, podsPerCore *int32) corev1.ResourceList {
 
 	resourceList := corev1.ResourceList{
 		corev1.ResourceCPU:              *cpu(info),
 		corev1.ResourceMemory:           *memory(ctx, info),
 		corev1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, blockDeviceMapping, instanceStorePolicy),
-		corev1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore),
+		corev1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces),
 		v1.ResourceAWSPodENI:            *awsPodENI(string(info.InstanceType)),
 		v1.ResourceNVIDIAGPU:            *nvidiaGPUs(info),
 		v1.ResourceAMDGPU:               *amdGPUs(info),
 		v1.ResourceAWSNeuron:            *awsNeuronDevices(info),
 		v1.ResourceAWSNeuronCore:        *awsNeuronCores(info),
 		v1.ResourceHabanaGaudi:          *habanaGaudis(info),
-		v1.ResourceEFA:                  *efas(info),
+		v1.ResourceEFA:                  *efas(info, networkInterfaces),
 	}
 	return resourceList
 }
@@ -458,15 +469,20 @@ func habanaGaudis(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func efas(info ec2types.InstanceTypeInfo) *resource.Quantity {
-	count := int32(0)
-	if info.NetworkInfo != nil && info.NetworkInfo.EfaInfo != nil && info.NetworkInfo.EfaInfo.MaximumEfaInterfaces != nil {
-		count = *info.NetworkInfo.EfaInfo.MaximumEfaInterfaces
+func efas(info ec2types.InstanceTypeInfo, networkInterfaces []*v1.NetworkInterface) *resource.Quantity {
+	// If the network interface field is specified on the NodeClass, this overrides the EFAs that the instance type supports.
+	count := 0
+	if networkInterfaces != nil {
+		count = lo.CountBy(networkInterfaces, func(nic *v1.NetworkInterface) bool {
+			return nic.InterfaceType == v1.InterfaceTypeEFAOnly
+		})
+	} else if info.NetworkInfo != nil && info.NetworkInfo.EfaInfo != nil && info.NetworkInfo.EfaInfo.MaximumEfaInterfaces != nil {
+		count = int(*info.NetworkInfo.EfaInfo.MaximumEfaInterfaces)
 	}
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo, reservedENIs int) *resource.Quantity {
+func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo, reservedENIs int, ncNetworkInterfaces []*v1.NetworkInterface) *resource.Quantity {
 	// The number of pods per node is calculated using the formula:
 	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 	// https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/eni-max-pods.txt
@@ -474,7 +490,13 @@ func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo, reserve
 	// VPC CNI only uses the default network interface
 	// https://github.com/aws/amazon-vpc-cni-k8s/blob/3294231c0dce52cfe473bf6c62f47956a3b333b6/scripts/gen_vpc_ip_limits.go#L162
 	networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
-	usableNetworkInterfaces := lo.Max([]int64{int64(int(networkInterfaces) - reservedENIs), 0})
+
+	// EFA-only interfaces consume an ENI and don't support IP networking
+	numEFAOnly := lo.CountBy(ncNetworkInterfaces, func(n *v1.NetworkInterface) bool {
+		return n.NetworkCardIndex == 0 && n.InterfaceType == v1.InterfaceType(ec2types.NetworkInterfaceTypeEfaOnly)
+	})
+
+	usableNetworkInterfaces := lo.Max([]int64{int64(int(networkInterfaces) - reservedENIs - numEFAOnly), 0})
 	if usableNetworkInterfaces == 0 {
 		return resource.NewQuantity(0, resource.DecimalSI)
 	}
@@ -529,42 +551,35 @@ func kubeReservedResources(cpus, pods *resource.Quantity, kubeReserved map[strin
 	}))
 }
 
-func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, amiFamily amifamily.AMIFamily, evictionHard map[string]string, evictionSoft map[string]string) corev1.ResourceList {
+func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, evictionHard map[string]string) corev1.ResourceList {
 	overhead := corev1.ResourceList{
 		corev1.ResourceMemory:           resource.MustParse("100Mi"),
 		corev1.ResourceEphemeralStorage: resource.MustParse(fmt.Sprint(math.Ceil(float64(storage.Value()) / 100 * 10))),
 	}
 
 	override := corev1.ResourceList{}
-	var evictionSignals []map[string]string
+	// Only use evictionHard for allocatable memory calculation
+	// evictionSoft should not impact allocatable capacity as it's only a warning threshold
+	// See: https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#eviction-thresholds
 	if evictionHard != nil {
-		evictionSignals = append(evictionSignals, evictionHard)
-	}
-	if evictionSoft != nil && amiFamily.FeatureFlags().EvictionSoftEnabled {
-		evictionSignals = append(evictionSignals, evictionSoft)
-	}
-
-	for _, m := range evictionSignals {
-		temp := corev1.ResourceList{}
-		if v, ok := m[MemoryAvailable]; ok {
-			temp[corev1.ResourceMemory] = computeEvictionSignal(*memory, v)
+		if v, ok := evictionHard[MemoryAvailable]; ok {
+			override[corev1.ResourceMemory] = computeEvictionSignal(*memory, v)
 		}
-		if v, ok := m[NodeFSAvailable]; ok {
-			temp[corev1.ResourceEphemeralStorage] = computeEvictionSignal(*storage, v)
+		if v, ok := evictionHard[NodeFSAvailable]; ok {
+			override[corev1.ResourceEphemeralStorage] = computeEvictionSignal(*storage, v)
 		}
-		override = resources.MaxResources(override, temp)
 	}
 	// Assign merges maps from left to right so overrides will always be taken last
 	return lo.Assign(overhead, override)
 }
 
-func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods *int32, podsPerCore *int32) *resource.Quantity {
+func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods *int32, podsPerCore *int32, ncNetworkInterfaces []*v1.NetworkInterface) *resource.Quantity {
 	var count int64
 	switch {
 	case maxPods != nil:
 		count = int64(lo.FromPtr(maxPods))
 	case amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
-		count = ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs).Value()
+		count = ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs, ncNetworkInterfaces).Value()
 	default:
 		count = 110
 

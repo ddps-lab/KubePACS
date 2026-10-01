@@ -15,6 +15,7 @@ package main
 import (
 	"sync"
 
+	"github.com/samber/lo"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
 	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
@@ -40,6 +41,7 @@ func main() {
 		op.AMIProvider,
 		op.SecurityGroupProvider,
 		op.CapacityReservationProvider,
+		op.PlacementGroupProvider,
 		op.InstanceTypeStore,
 	)
 	overlayUndecoratedCloudProvider := metrics.Decorate(kwokAWSCloudProvider)
@@ -51,24 +53,18 @@ func main() {
 	}
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		<-op.Elected()
 		op.EC2API.StartBackupThread(ctx)
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	})
+	wg.Go(func() {
 		<-op.Elected()
 		op.EC2API.StartKillNodeThread(ctx)
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	})
+	wg.Go(func() {
 		<-op.Elected()
 		op.EC2API.ReadBackup(ctx)
-	}()
+	})
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(
@@ -105,7 +101,11 @@ func main() {
 			op.VersionProvider,
 			op.InstanceTypesProvider,
 			op.CapacityReservationProvider,
+			op.PlacementGroupProvider,
 			op.AMIResolver,
+			op.ZonalShiftProvider,
+			op.InstanceStatusProvider,
+			lo.ToPtr(""),
 		)...).
 		Start(ctx)
 	wg.Wait()

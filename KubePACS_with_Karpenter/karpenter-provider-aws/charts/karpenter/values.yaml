@@ -110,6 +110,7 @@ tolerations:
   - key: CriticalAddonsOnly
     operator: Exists
 # -- Additional volumes for the pod.
+# The KubePACS solver writes temporary files under /tmp, which is read-only in the controller container otherwise.
 extraVolumes:
   - name: tmp
     emptyDir: {}
@@ -120,7 +121,7 @@ controller:
     # -- Repository path to the KubePACS-enabled Karpenter controller image.
     repository: ghcr.io/ddps-lab/kubepacs-karpenter-controller
     # -- Tag of the KubePACS-enabled Karpenter controller image.
-    tag: 1.8.1-kubepacs
+    tag: 1.14.0-kubepacs
     # -- SHA256 digest of the controller image. Leave empty when using a mutable release tag.
     digest: ""
   # -- Additional environment variables for the controller pod.
@@ -200,6 +201,9 @@ settings:
   # Interruption handling is disabled if not specified. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs.
   interruptionQueue: ""
+  # -- Marking this true signals Karpenter to respect zonal shifts when making node claims.
+  # More information about Zonal Shift here: https://docs.aws.amazon.com/eks/latest/userguide/zone-shift-enable.html#zone-shift-enable-steps
+  enableZonalShift: false
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
   reservedENIs: "0"
@@ -221,6 +225,15 @@ settings:
     scenarioInstanceLabel: kubepacs-scenario-instance
     # -- Path to the Python solver inside the controller image.
     solverPath: /usr/local/bin/kubepacs_cli.py
+    # -- How long offerings that failed to launch (e.g. spot capacity errors) stay excluded. Applies to every NodePool.
+    # Empty keeps the KubePACS default (12h); set "3m" to match upstream Karpenter.
+    unavailableOfferingsTTL: ""
+  # -- How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of
+  # DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m.
+  amiRefreshInterval: 1m
+  # -- How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of
+  # DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.
+  subnetRefreshInterval: 1m
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features.
   featureGates:
@@ -239,6 +252,9 @@ settings:
     # -- staticCapacity is ALPHA and is disabled by default.
     # Setting this to true will enable static capacity provisioning.
     staticCapacity: false
+    # -- capacityBuffer is ALPHA and is disabled by default.
+    # Setting this to true will enable CapacityBuffer support for pre-provisioning spare capacity.
+    capacityBuffer: false
 
 # -- Optional KubePACS EC2NodeClass managed by this chart.
 kubepacsNodeClass:

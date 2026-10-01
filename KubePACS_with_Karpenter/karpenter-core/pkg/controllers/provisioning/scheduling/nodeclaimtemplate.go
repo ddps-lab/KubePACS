@@ -37,6 +37,14 @@ import (
 // provisioned by Karpenter
 var DefaultTerminationGracePeriod *metav1.Duration = nil
 
+// schedulingSimulationKeys are requirement keys added to NodeClaimTemplate solely for
+// DaemonSet scheduling simulation. They must be excluded from NodeClaim labels and
+// spec.requirements to avoid affecting node lifecycle state (e.g. Initialized/Registered).
+var schedulingSimulationKeys = sets.New(
+	v1.NodeRegisteredLabelKey,
+	v1.NodeInitializedLabelKey,
+)
+
 // MaxInstanceTypes is a constant that restricts the number of instance types to be sent for launch. Note that this
 // is intentionally changed to var just to help in testing the code.
 var MaxInstanceTypes = 600
@@ -74,7 +82,28 @@ func NewNodeClaimTemplate(nodePool *v1.NodePool) *NodeClaimTemplate {
 	})
 	nct.Requirements.Add(scheduling.NewNodeSelectorRequirementsWithMinValues(nct.Spec.Requirements...).Values()...)
 	nct.Requirements.Add(scheduling.NewLabelRequirements(nct.Labels).Values()...)
+
+	// Add requirements for DaemonSet scheduling calculations
+	// These ensure DaemonSets with nodeAffinity for these labels are considered
+	nct.Requirements.Add(scheduling.NewRequirement(v1.NodeRegisteredLabelKey, corev1.NodeSelectorOpIn, "true"))
+	nct.Requirements.Add(scheduling.NewRequirement(v1.NodeInitializedLabelKey, corev1.NodeSelectorOpIn, "true"))
+
 	return nct
+}
+
+// resolveCustomLabelsFromRequirements resolves the concrete values for user-defined labels from a NodeClaimTemplate's
+// requirements.
+func (i *NodeClaimTemplate) resolveCustomLabelsFromRequirements() map[string]string {
+	labels := map[string]string{}
+	for key, requirement := range i.Requirements {
+		if v1.WellKnownLabels.Has(key) || v1.RestrictedLabels.Has(key) || schedulingSimulationKeys.Has(key) {
+			continue
+		}
+		if value := requirement.Any(); value != "" {
+			labels[key] = value
+		}
+	}
+	return labels
 }
 
 func (i *NodeClaimTemplate) ToNodeClaim() *v1.NodeClaim {
@@ -88,23 +117,13 @@ func (i *NodeClaimTemplate) ToNodeClaim() *v1.NodeClaim {
 		})...))
 
 		// Collect available capacity types from the selected instance types
-		availableCapacityTypes := sets.New[string]()
-		for _, instanceType := range instanceTypes {
-			for _, offering := range instanceType.Offerings {
-				// Only include available offerings that are compatible with current requirements
-				if offering.Available && i.Requirements.IsCompatible(offering.Requirements, scheduling.AllowUndefinedWellKnownLabels) {
-					availableCapacityTypes.Insert(offering.CapacityType())
-				}
-			}
-		}
-
-		// Add capacity type requirement if we have available types
-		if capacityTypeList := availableCapacityTypes.UnsortedList(); len(capacityTypeList) > 0 {
-			i.Requirements.Add(scheduling.NewRequirement(
-				v1.CapacityTypeLabelKey,
-				corev1.NodeSelectorOpIn,
-				capacityTypeList...,
-			))
+		capacityTypes := lo.Uniq(lo.FlatMap(instanceTypes, func(it *cloudprovider.InstanceType, _ int) []string {
+			return lo.Map(it.Offerings.Available().Compatible(i.Requirements), func(o *cloudprovider.Offering, _ int) string {
+				return o.CapacityType()
+			})
+		}))
+		if len(capacityTypes) > 0 {
+			i.Requirements.Add(scheduling.NewRequirement(v1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityTypes...))
 		}
 
 		if foundPriceOverlay := lo.ContainsBy(instanceTypes, func(it *cloudprovider.InstanceType) bool { return it.IsPricingOverlayApplied() }); foundPriceOverlay {
@@ -119,6 +138,17 @@ func (i *NodeClaimTemplate) ToNodeClaim() *v1.NodeClaim {
 		}
 	}
 
+	// We'll assign any labels with known, concrete values at NodeClaim creation time. This includes any labels from the
+	// NodeClaimTemplate (since there's a single possible value), and any resolved values for custom labels in the
+	// NodeClaimTemplate's requirements. The latter **cannot** be instance type dependent (like well-known labels) since
+	// Karpenter can't reason about which label domains would belong to each instance type.
+	i.Labels = lo.Assign(i.Labels, i.resolveCustomLabelsFromRequirements())
+
+	// Exclude scheduling-simulation-only requirements from the actual NodeClaim.
+	requirements := scheduling.NewRequirements(lo.Filter(i.Requirements.Values(), func(req *scheduling.Requirement, _ int) bool {
+		return !schedulingSimulationKeys.Has(req.Key)
+	})...)
+
 	nc := &v1.NodeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: fmt.Sprintf("%s-", i.NodePoolName),
@@ -130,13 +160,13 @@ func (i *NodeClaimTemplate) ToNodeClaim() *v1.NodeClaim {
 					Kind:               object.GVK(&v1.NodePool{}).Kind,
 					Name:               i.NodePoolName,
 					UID:                i.NodePoolUUID,
-					BlockOwnerDeletion: lo.ToPtr(true),
+					BlockOwnerDeletion: new(true),
 				},
 			},
 		},
 		Spec: i.Spec,
 	}
-	nc.Spec.Requirements = i.Requirements.NodeSelectorRequirements()
+	nc.Spec.Requirements = requirements.NodeSelectorRequirements()
 	if nc.Spec.TerminationGracePeriod == nil {
 		nc.Spec.TerminationGracePeriod = DefaultTerminationGracePeriod
 	}

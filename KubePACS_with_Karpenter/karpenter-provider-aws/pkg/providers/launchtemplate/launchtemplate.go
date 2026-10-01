@@ -19,32 +19,33 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"strings"
+	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/awslabs/operatorpkg/option"
-	"github.com/awslabs/operatorpkg/serrors"
-	"go.uber.org/multierr"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/awslabs/operatorpkg/option"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -70,18 +71,19 @@ func WithLaunchModeProvider(provider LaunchModeProvider) DefaultProviderOpts {
 type DefaultProvider struct {
 	sync.Mutex
 	LaunchModeProvider
-	ec2api                sdk.EC2API
-	eksapi                sdk.EKSAPI
-	amiFamily             amifamily.Resolver
-	securityGroupProvider securitygroup.Provider
-	subnetProvider        subnet.Provider
-	cache                 *cache.Cache
-	cm                    *pretty.ChangeMonitor
-	KubeDNSIP             net.IP
-	CABundle              *string
-	ClusterEndpoint       string
-	ClusterCIDR           atomic.Pointer[string]
-	ClusterIPFamily       corev1.IPFamily
+	ec2api                 sdk.EC2API
+	eksapi                 sdk.EKSAPI
+	amiFamily              amifamily.Resolver
+	securityGroupProvider  securitygroup.Provider
+	subnetProvider         subnet.Provider
+	placementGroupProvider placementgroup.Provider
+	cache                  *cache.Cache
+	cm                     *pretty.ChangeMonitor
+	KubeDNSIP              net.IP
+	CABundle               *string
+	ClusterEndpoint        string
+	ClusterCIDR            atomic.Pointer[string]
+	ClusterIPFamily        corev1.IPFamily
 }
 
 func NewDefaultProvider(
@@ -92,6 +94,7 @@ func NewDefaultProvider(
 	amiFamily amifamily.Resolver,
 	securityGroupProvider securitygroup.Provider,
 	subnetProvider subnet.Provider,
+	placementGroupProvider placementgroup.Provider,
 	caBundle *string,
 	startAsync <-chan struct{},
 	kubeDNSIP net.IP,
@@ -103,18 +106,19 @@ func NewDefaultProvider(
 		resolvedOpts.launchModeProvider = defaultLaunchModeProvider{}
 	}
 	l := &DefaultProvider{
-		LaunchModeProvider:    resolvedOpts.launchModeProvider,
-		ec2api:                ec2api,
-		eksapi:                eksapi,
-		amiFamily:             amiFamily,
-		securityGroupProvider: securityGroupProvider,
-		subnetProvider:        subnetProvider,
-		cache:                 cache,
-		CABundle:              caBundle,
-		cm:                    pretty.NewChangeMonitor(),
-		KubeDNSIP:             kubeDNSIP,
-		ClusterEndpoint:       clusterEndpoint,
-		ClusterIPFamily:       lo.Ternary(kubeDNSIP != nil && kubeDNSIP.To4() == nil, corev1.IPv6Protocol, corev1.IPv4Protocol),
+		LaunchModeProvider:     resolvedOpts.launchModeProvider,
+		ec2api:                 ec2api,
+		eksapi:                 eksapi,
+		amiFamily:              amiFamily,
+		securityGroupProvider:  securityGroupProvider,
+		subnetProvider:         subnetProvider,
+		placementGroupProvider: placementGroupProvider,
+		cache:                  cache,
+		CABundle:               caBundle,
+		cm:                     pretty.NewChangeMonitor(),
+		KubeDNSIP:              kubeDNSIP,
+		ClusterEndpoint:        clusterEndpoint,
+		ClusterIPFamily:        lo.Ternary(kubeDNSIP != nil && kubeDNSIP.To4() == nil, corev1.IPv6Protocol, corev1.IPv4Protocol),
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -128,6 +132,7 @@ func NewDefaultProvider(
 	}()
 	return l
 }
+
 func (p *DefaultProvider) EnsureAll(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
@@ -142,13 +147,32 @@ func (p *DefaultProvider) EnsureAll(
 
 	opts, err := p.CreateAMIOptions(ctx, nodeClass, lo.Assign(
 		nodeClaim.Labels,
-		scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Labels(), // Inject single-value requirements into userData
 		map[string]string{karpv1.CapacityTypeLabelKey: capacityType},
 	), tags)
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts)
+
+	var pgID string
+	var pgPartition int32
+	if pg, _ := p.placementGroupProvider.Get(ctx, nodeClass); pg != nil {
+		pgID = pg.ID
+		if pg.Strategy == placementgroup.StrategyPartition {
+			reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+			// Pick the lowest partition deterministically. EC2 only accepts one partition number.
+			// If this partition ICEs, the offering is marked unavailable and the provisioner
+			// generates a new NodeClaim with the remaining partitions.
+			if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil {
+				if values := partitionReq.Values(); len(values) > 0 {
+					sort.Strings(values)
+					if parsed, err := strconv.ParseInt(values[0], 10, 32); err == nil {
+						pgPartition = int32(parsed)
+					}
+				}
+			}
+		}
+	}
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts, pgID, pgPartition)
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +188,7 @@ func (p *DefaultProvider) EnsureAll(
 			InstanceTypes:         resolvedLaunchTemplate.InstanceTypes,
 			ImageID:               resolvedLaunchTemplate.AMIID,
 			CapacityReservationID: resolvedLaunchTemplate.CapacityReservationID,
+			Zone:                  resolvedLaunchTemplate.Zone,
 		})
 	}
 	return launchTemplates, nil
@@ -185,14 +210,6 @@ func LaunchTemplateName(options *amifamily.LaunchTemplate) string {
 }
 
 func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
-	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" or "kops.k8s.io" since the kubelet can't
-	// register the node with any labels from this domain: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#noderestriction
-	for k := range labels {
-		labelDomain := karpv1.GetLabelDomain(k)
-		if strings.HasSuffix(labelDomain, corev1.LabelNamespaceNodeRestriction) || strings.HasSuffix(labelDomain, "kops.k8s.io") {
-			delete(labels, k)
-		}
-	}
 	labels = InjectDoNotSyncTaintsLabel(nodeClass.AMIFamily(), labels)
 	// Relying on the status rather than an API call means that Karpenter is subject to a race
 	// condition where EC2NodeClass spec changes haven't propagated to the status once a node
@@ -257,7 +274,7 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 }
 
 func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (ec2types.LaunchTemplate, error) {
-	userData, err := options.UserData.Script()
+	userData, err := options.UserData.Script(ctx)
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
 	}
@@ -272,6 +289,39 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
 func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamily corev1.IPFamily) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+	connTrackSpec := connectionTrackingSpec(options.ConnectionTracking)
+	if len(options.NetworkInterfaces) > 0 {
+		return lo.Map(options.NetworkInterfaces, func(ni *amifamily.ResolvedNetworkInterface, _ int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+			// Assigning IPPrefixCounts or AssociatePublicIpAddress to EFA-only ENIs results in RunInstances failures w/ InvalidParameterValue
+			typeNotEFAOnly := ni.InterfaceType != v1.InterfaceType(ec2types.NetworkInterfaceTypeEfaOnly)
+			var ipv4PrefixCount, ipv6PrefixCount, secondaryPrivateIPCount, ipv6AddressCount *int32
+			if typeNotEFAOnly {
+				ipv4PrefixCount, ipv6PrefixCount, secondaryPrivateIPCount, ipv6AddressCount = ipCounts(options, ni, clusterIPFamily)
+			}
+
+			groups := lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID })
+			if len(ni.SecondaryENISecurityGroups) > 0 && (ni.NetworkCardIndex != 0 || ni.DeviceIndex != 0) {
+				groups = lo.Map(ni.SecondaryENISecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID })
+			}
+			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+				NetworkCardIndex:               lo.ToPtr(ni.NetworkCardIndex),
+				DeviceIndex:                    lo.ToPtr(ni.DeviceIndex),
+				InterfaceType:                  lo.ToPtr(string(ni.InterfaceType)),
+				SubnetId:                       lo.Ternary(ni.SubnetID != "", lo.ToPtr(ni.SubnetID), nil),
+				Ipv4PrefixCount:                ipv4PrefixCount,
+				Ipv6PrefixCount:                ipv6PrefixCount,
+				SecondaryPrivateIpAddressCount: secondaryPrivateIPCount,
+				Groups:                         groups,
+				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
+				// with a single ENA network interface, and we should support those use cases. Launch failures with multiple enis as ENA should be considered user misconfiguration.
+				AssociatePublicIpAddress:        lo.Ternary(typeNotEFAOnly, options.AssociatePublicIPAddress, nil),
+				PrimaryIpv6:                     lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, lo.ToPtr(true), nil),
+				Ipv6AddressCount:                ipv6AddressCount,
+				ConnectionTrackingSpecification: lo.Ternary(typeNotEFAOnly, connTrackSpec, nil),
+			}
+		})
+	}
+
 	if options.EFACount != 0 {
 		return lo.Times(options.EFACount, func(i int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
@@ -285,9 +335,10 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 				Groups:          lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
 				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
 				// with a single EFA network interface, and we should support those use cases. Launch failures with multiple enis should be considered user misconfiguration.
-				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
-				PrimaryIpv6:              lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
-				Ipv6AddressCount:         lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+				AssociatePublicIpAddress:        options.AssociatePublicIPAddress,
+				PrimaryIpv6:                     lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+				Ipv6AddressCount:                lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+				ConnectionTrackingSpecification: connTrackSpec,
 			}
 		})
 	}
@@ -301,9 +352,35 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 			Groups: lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string {
 				return s.ID
 			}),
-			PrimaryIpv6:      lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
-			Ipv6AddressCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+			PrimaryIpv6:                     lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+			Ipv6AddressCount:                lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+			ConnectionTrackingSpecification: connTrackSpec,
 		},
+	}
+}
+
+func ipCounts(options *amifamily.LaunchTemplate, ni *amifamily.ResolvedNetworkInterface, clusterIPFamily corev1.IPFamily) (
+	ipv4PrefixCount *int32, ipv6PrefixCount *int32, secondaryPrivateIPCount *int32, ipv6AddressCount *int32,
+) {
+	if clusterIPFamily == corev1.IPv4Protocol {
+		ipv4PrefixCount = lo.Ternary(ni.SecondaryIPPrefixCount != nil, ni.SecondaryIPPrefixCount, options.IPPrefixCount)
+		secondaryPrivateIPCount = ni.SecondaryIPCount
+	}
+	if clusterIPFamily == corev1.IPv6Protocol {
+		ipv6PrefixCount = lo.Ternary(ni.SecondaryIPPrefixCount != nil, ni.SecondaryIPPrefixCount, options.IPPrefixCount)
+		ipv6AddressCount = lo.Ternary(ni.SecondaryIPCount != nil, ni.SecondaryIPCount, lo.ToPtr(int32(1)))
+	}
+	return ipv4PrefixCount, ipv6PrefixCount, secondaryPrivateIPCount, ipv6AddressCount
+}
+
+func connectionTrackingSpec(ct *v1.ConnectionTracking) *ec2types.ConnectionTrackingSpecificationRequest {
+	if ct == nil || (ct.TCPEstablishedTimeout == nil && ct.UDPStreamTimeout == nil && ct.UDPTimeout == nil) {
+		return nil
+	}
+	return &ec2types.ConnectionTrackingSpecificationRequest{
+		TcpEstablishedTimeout: ct.TCPEstablishedTimeout,
+		UdpStreamTimeout:      ct.UDPStreamTimeout,
+		UdpTimeout:            ct.UDPTimeout,
 	}
 }
 
@@ -344,6 +421,15 @@ func volumeSize(quantity *resource.Quantity) *int32 {
 	return lo.ToPtr(int32(math.Ceil(quantity.AsApproximateFloat64() / math.Pow(2, 30))))
 }
 
+func cpuOptions(cpuOptions *v1.CPUOptions) *ec2types.LaunchTemplateCpuOptionsRequest {
+	if cpuOptions == nil || cpuOptions.NestedVirtualization == nil {
+		return nil
+	}
+	return &ec2types.LaunchTemplateCpuOptionsRequest{
+		NestedVirtualization: ec2types.NestedVirtualizationSpecification(*cpuOptions.NestedVirtualization),
+	}
+}
+
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
 func (p *DefaultProvider) hydrateCache(ctx context.Context) {
@@ -376,8 +462,8 @@ func (p *DefaultProvider) hydrateCache(ctx context.Context) {
 	log.FromContext(ctx).WithValues("count", p.cache.ItemCount()).V(1).Info("hydrated launch template cache")
 }
 
-func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, interface{}) {
-	return func(key string, lt interface{}) {
+func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, any) {
+	return func(key string, lt any) {
 		p.Lock()
 		defer p.Unlock()
 		if _, expiration, _ := p.cache.GetWithExpiration(key); expiration.After(time.Now()) {

@@ -19,8 +19,10 @@ package validation
 import (
 	"context"
 
+	"github.com/awslabs/operatorpkg/status"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/utils/clock"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,26 +40,32 @@ import (
 type Controller struct {
 	kubeClient    client.Client
 	cloudProvider cloudprovider.CloudProvider
+	clock         clock.Clock
 }
 
 // NewController is a constructor
-func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Controller {
+func NewController(clk clock.Clock, kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		kubeClient:    kubeClient,
 		cloudProvider: cloudProvider,
+		clock:         clk,
 	}
 }
 
+func (c *Controller) Name() string {
+	return "nodepool.validation"
+}
+
 func (c *Controller) Reconcile(ctx context.Context, nodePool *v1.NodePool) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "nodepool.validation")
+	ctx = injection.WithControllerName(ctx, c.Name())
 	if !nodepoolutils.IsManaged(nodePool, c.cloudProvider) {
 		return reconcile.Result{}, nil
 	}
 	stored := nodePool.DeepCopy()
 	if err := nodePool.RuntimeValidate(ctx); err != nil {
-		nodePool.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "NodePoolValidationFailed", err.Error())
+		nodePool.StatusConditions(status.WithClock(c.clock)).SetFalse(v1.ConditionTypeValidationSucceeded, "NodePoolValidationFailed", err.Error())
 	} else {
-		nodePool.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
+		nodePool.StatusConditions(status.WithClock(c.clock)).SetTrue(v1.ConditionTypeValidationSucceeded)
 	}
 	if !equality.Semantic.DeepEqual(stored, nodePool) {
 		// We use client.MergeFromWithOptimisticLock because patching a list with a JSON merge patch
@@ -75,7 +83,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodePool *v1.NodePool) (reco
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("nodepool.validation").
+		Named(c.Name()).
 		For(&v1.NodePool{}, builder.WithPredicates(nodepoolutils.IsManagedPredicateFuncs(c.cloudProvider))).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
 		Complete(reconcile.AsReconciler(m.GetClient(), c))

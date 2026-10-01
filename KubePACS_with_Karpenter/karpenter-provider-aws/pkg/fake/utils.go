@@ -16,6 +16,7 @@ package fake
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
@@ -101,12 +102,26 @@ func FilterDescribeSubnets(subnets []ec2types.Subnet, filters []ec2types.Filter)
 }
 
 func FilterDescribeCapacityReservations(crs []ec2types.CapacityReservation, ids []string, filters []ec2types.Filter) []ec2types.CapacityReservation {
-	idSet := sets.New[string](ids...)
+	idSet := sets.New(ids...)
 	return lo.Filter(crs, func(cr ec2types.CapacityReservation, _ int) bool {
 		if len(ids) != 0 && !idSet.Has(*cr.CapacityReservationId) {
 			return false
 		}
 		return FilterCapacityReservation(filters, *cr.CapacityReservationId, "", *cr.OwnerId, string(cr.State), string(cr.InstanceMatchCriteria), cr.Tags)
+	})
+}
+
+func FilterDescribePlacementGroups(pgs []ec2types.PlacementGroup, ids []string, names []string, filters []ec2types.Filter) []ec2types.PlacementGroup {
+	idSet := sets.New(ids...)
+	nameSet := sets.New(names...)
+	return lo.Filter(pgs, func(pg ec2types.PlacementGroup, _ int) bool {
+		if len(ids) != 0 && !idSet.Has(lo.FromPtr(pg.GroupId)) {
+			return false
+		}
+		if len(names) != 0 && !nameSet.Has(lo.FromPtr(pg.GroupName)) {
+			return false
+		}
+		return Filter(filters, lo.FromPtr(pg.GroupId), lo.FromPtr(pg.GroupName), "", string(pg.State), pg.Tags)
 	})
 }
 
@@ -121,29 +136,13 @@ func Filter(filters []ec2types.Filter, id, name, owner, state string, tags []ec2
 	return lo.EveryBy(filters, func(filter ec2types.Filter) bool {
 		switch filterName := aws.ToString(filter.Name); {
 		case filterName == "state":
-			for _, val := range filter.Values {
-				if state == val {
-					return true
-				}
-			}
+			return slices.Contains(filter.Values, state)
 		case filterName == "subnet-id" || filterName == "group-id" || filterName == "image-id":
-			for _, val := range filter.Values {
-				if id == val {
-					return true
-				}
-			}
+			return slices.Contains(filter.Values, id)
 		case filterName == "group-name" || filterName == "name":
-			for _, val := range filter.Values {
-				if name == val {
-					return true
-				}
-			}
+			return slices.Contains(filter.Values, name)
 		case filterName == "owner-id":
-			for _, val := range filter.Values {
-				if owner == val {
-					return true
-				}
-			}
+			return slices.Contains(filter.Values, owner)
 		case strings.HasPrefix(filterName, "tag"):
 			if matchTags(tags, filter) {
 				return true
@@ -196,6 +195,10 @@ func MakeInstances() []ec2types.InstanceTypeInfo {
 	// Use keys from the static pricing data so that we guarantee pricing for the data
 	// Create uniform instance data so all of them schedule for a given pod
 	for _, it := range pricing.NewDefaultProvider(nil, nil, "us-east-1", true).InstanceTypes() {
+		// a1 instances are incompatible with AL2023 (the default test AMI family)
+		if strings.HasPrefix(string(it), "a1.") {
+			continue
+		}
 		instanceTypes = append(instanceTypes, ec2types.InstanceTypeInfo{
 			InstanceType: it,
 			ProcessorInfo: &ec2types.ProcessorInfo{
@@ -215,6 +218,13 @@ func MakeInstances() []ec2types.InstanceTypeInfo {
 					NetworkCardIndex:         lo.ToPtr(int32(0)),
 					MaximumNetworkInterfaces: aws.Int32(3),
 				}},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{
+					ec2types.PlacementGroupStrategyCluster,
+					ec2types.PlacementGroupStrategyPartition,
+					ec2types.PlacementGroupStrategySpread,
+				},
 			},
 			SupportedUsageClasses: DefaultSupportedUsageClasses,
 		})

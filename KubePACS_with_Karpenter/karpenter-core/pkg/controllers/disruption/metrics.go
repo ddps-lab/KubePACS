@@ -29,6 +29,7 @@ const (
 	decisionLabel                = "decision"
 	ConsolidationTypeLabel       = "consolidation_type"
 	CandidatesIneligible         = "candidates_ineligible"
+	policyLabel                  = "policy"
 )
 
 func init() {
@@ -57,6 +58,16 @@ var (
 			Help:      "Number of disruption decisions performed. Labeled by disruption decision, reason, and consolidation type.",
 		},
 		[]string{decisionLabel, metrics.ReasonLabel, ConsolidationTypeLabel},
+	)
+	NodepoolDecisionsPerformed = opmetrics.NewPrometheusCounter(
+		crmetrics.Registry,
+		prometheus.CounterOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: voluntaryDisruptionSubsystem,
+			Name:      "decisions_by_nodepool_total",
+			Help:      "Number of disruption decisions performed by nodepool. Labeled by nodepool name, disruption decision, reason, and consolidation type.",
+		},
+		[]string{metrics.NodePoolLabel, decisionLabel, metrics.ReasonLabel, ConsolidationTypeLabel},
 	)
 	EligibleNodes = opmetrics.NewPrometheusGauge(
 		crmetrics.Registry,
@@ -98,6 +109,16 @@ var (
 		},
 		[]string{metrics.NodePoolLabel, metrics.ReasonLabel},
 	)
+	NodePoolNodesConsumingBudgets = opmetrics.NewPrometheusGauge(
+		crmetrics.Registry,
+		prometheus.GaugeOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: metrics.NodePoolSubsystem,
+			Name:      "nodes_consuming_budgets",
+			Help:      "The number of nodes consuming the budget of a nodepool at a point in time. Labeled by NodePool.",
+		},
+		[]string{metrics.NodePoolLabel, metrics.ReasonLabel},
+	)
 	DisruptionQueueFailuresTotal = opmetrics.NewPrometheusCounter(
 		crmetrics.Registry,
 		prometheus.CounterOpts{
@@ -107,5 +128,24 @@ var (
 			Help:      "The number of times that an enqueued disruption decision failed. Labeled by disruption method.",
 		},
 		[]string{decisionLabel, metrics.ReasonLabel, ConsolidationTypeLabel},
+	)
+	ConsolidationScoreHistogram = opmetrics.NewPrometheusHistogram(
+		crmetrics.Registry,
+		prometheus.HistogramOpts{
+			Namespace: metrics.Namespace,
+			Name:      "consolidation_score",
+			Help:      "Score of balanced consolidation moves. Labeled by decision, NodePool, and policy.",
+			Buckets:   []float64{0.1, 0.25, 0.33, 0.5, 1.0, 2.0, 5.0, 10.0},
+		},
+		[]string{decisionLabel, metrics.NodePoolLabel, policyLabel},
+	)
+	ConsolidationMovesTotal = opmetrics.NewPrometheusCounter(
+		crmetrics.Registry,
+		prometheus.CounterOpts{
+			Namespace: metrics.Namespace,
+			Name:      "consolidation_moves_total",
+			Help:      "Number of balanced consolidation moves. Labeled by decision, NodePool, and policy.",
+		},
+		[]string{decisionLabel, metrics.NodePoolLabel, policyLabel},
 	)
 )

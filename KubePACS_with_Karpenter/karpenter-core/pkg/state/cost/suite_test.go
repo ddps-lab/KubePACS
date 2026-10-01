@@ -26,11 +26,9 @@ import (
 	"github.com/awslabs/operatorpkg/object"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
-	clock "k8s.io/utils/clock/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"sigs.k8s.io/karpenter/pkg/apis"
@@ -52,7 +50,6 @@ import (
 
 var ctx context.Context
 var env *test.Environment
-var fakeClock *clock.FakeClock
 var cluster *state.Cluster
 var nodeOverlayStore *nodeoverlay.InstanceTypeStore
 var nodeOverlayController *nodeoverlay.Controller
@@ -72,10 +69,9 @@ var _ = BeforeSuite(func() {
 	}))
 	ctx = options.ToContext(ctx, test.Options())
 	cloudProvider = fake.NewCloudProvider()
-	fakeClock = clock.NewFakeClock(time.Now())
-	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
+	cluster = state.NewCluster(env.Clock, env.Client, cloudProvider)
 	nodeOverlayStore = nodeoverlay.NewInstanceTypeStore()
-	nodeOverlayController = nodeoverlay.NewController(env.Client, cloudProvider, nodeOverlayStore, cluster)
+	nodeOverlayController = nodeoverlay.NewController(env.Clock, env.Client, cloudProvider, nodeOverlayStore, cluster)
 	pricingController = informer.NewPricingController(env.Client, cloudProvider, clusterCost)
 	clusterCost = cost.NewClusterCost(ctx, cloudProvider, env.Client)
 })
@@ -166,7 +162,7 @@ var _ = Describe("ClusterCost", func() {
 		It("should update costs correctly for duplicate spot offering to increment count", func() {
 			// Setup: Add initial spot offering to create baseline
 			nodeClaim := createTestNodeClaim(testNodePool, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
-			clusterCost.UpdateNodeClaim(ctx, nodeClaim)
+			Expect(clusterCost.UpdateNodeClaim(ctx, nodeClaim)).To(Succeed())
 
 			RunUpdateNodeClaimTest(
 				clusterCost,
@@ -182,7 +178,7 @@ var _ = Describe("ClusterCost", func() {
 		It("should update costs correctly for different offering types to same nodepool", func() {
 			// Setup: Add spot offering first, then test will add on-demand offering
 			nodeClaim := createTestNodeClaim(testNodePool, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
-			clusterCost.UpdateNodeClaim(ctx, nodeClaim)
+			Expect(clusterCost.UpdateNodeClaim(ctx, nodeClaim)).To(Succeed())
 
 			RunUpdateNodeClaimTest(
 				clusterCost,
@@ -198,7 +194,7 @@ var _ = Describe("ClusterCost", func() {
 		It("should update costs correctly for offering to different nodepool", func() {
 			// Setup: Add spot offering to first nodepool, then test will add on-demand to second nodepool
 			nodeClaim := createTestNodeClaim(testNodePool, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
-			clusterCost.UpdateNodeClaim(ctx, nodeClaim)
+			Expect(clusterCost.UpdateNodeClaim(ctx, nodeClaim)).To(Succeed())
 
 			RunUpdateNodeClaimTest(
 				clusterCost,
@@ -216,7 +212,7 @@ var _ = Describe("ClusterCost", func() {
 		It("should update costs correctly for single spot offering from nodepool with one offering", func() {
 			// Setup: Add one spot offering to remove
 			nodeClaim := createTestNodeClaim(testNodePool, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
-			clusterCost.UpdateNodeClaim(ctx, nodeClaim)
+			Expect(clusterCost.UpdateNodeClaim(ctx, nodeClaim)).To(Succeed())
 
 			RunDeleteNodeClaimTest(
 				clusterCost,
@@ -232,8 +228,8 @@ var _ = Describe("ClusterCost", func() {
 			nodeClaim1 := createTestNodeClaim(testNodePool, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
 			nodeClaim2 := createTestNodeClaim(testNodePool, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
 			nodeClaim2.Name = "test-nodeclaim-2"
-			clusterCost.UpdateNodeClaim(ctx, nodeClaim1)
-			clusterCost.UpdateNodeClaim(ctx, nodeClaim2)
+			Expect(clusterCost.UpdateNodeClaim(ctx, nodeClaim1)).To(Succeed())
+			Expect(clusterCost.UpdateNodeClaim(ctx, nodeClaim2)).To(Succeed())
 
 			RunDeleteNodeClaimTest(
 				clusterCost,
@@ -249,8 +245,8 @@ var _ = Describe("ClusterCost", func() {
 			spotNodeClaim := createTestNodeClaim(testNodePool, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
 			onDemandNodeClaim := createTestNodeClaim(testNodePool, testInstanceType.Name, onDemandOffering.CapacityType(), onDemandOffering.Zone())
 			onDemandNodeClaim.Name = "test-nodeclaim-ondemand"
-			clusterCost.UpdateNodeClaim(ctx, spotNodeClaim)
-			clusterCost.UpdateNodeClaim(ctx, onDemandNodeClaim)
+			Expect(clusterCost.UpdateNodeClaim(ctx, spotNodeClaim)).To(Succeed())
+			Expect(clusterCost.UpdateNodeClaim(ctx, onDemandNodeClaim)).To(Succeed())
 
 			RunDeleteNodeClaimTest(
 				clusterCost,
@@ -266,8 +262,8 @@ var _ = Describe("ClusterCost", func() {
 			spotNodeClaim := createTestNodeClaim(testNodePool, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
 			onDemandNodeClaim := createTestNodeClaim(testNodePool2, testInstanceType.Name, onDemandOffering.CapacityType(), onDemandOffering.Zone())
 			onDemandNodeClaim.Name = "test-nodeclaim-ondemand"
-			clusterCost.UpdateNodeClaim(ctx, spotNodeClaim)
-			clusterCost.UpdateNodeClaim(ctx, onDemandNodeClaim)
+			Expect(clusterCost.UpdateNodeClaim(ctx, spotNodeClaim)).To(Succeed())
+			Expect(clusterCost.UpdateNodeClaim(ctx, onDemandNodeClaim)).To(Succeed())
 
 			RunDeleteNodeClaimTest(
 				clusterCost,
@@ -281,7 +277,7 @@ var _ = Describe("ClusterCost", func() {
 		It("should update costs correctly for last offering completely removes nodepool entry", func() {
 			// Setup: Add single spot offering to remove completely
 			nodeClaim := createTestNodeClaim(testNodePool, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
-			clusterCost.UpdateNodeClaim(ctx, nodeClaim)
+			Expect(clusterCost.UpdateNodeClaim(ctx, nodeClaim)).To(Succeed())
 
 			RunDeleteNodeClaimTest(
 				clusterCost,
@@ -298,22 +294,22 @@ var _ = Describe("ClusterCost", func() {
 			GinkgoHelper()
 			// Setup: Add initial offering to establish baseline cost
 			nodeClaim := createTestNodeClaim(testNodePool, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
-			clusterCost.UpdateNodeClaim(ctx, nodeClaim)
+			Expect(clusterCost.UpdateNodeClaim(ctx, nodeClaim)).To(Succeed())
 
 			// Verify initial cost
 			initialCost := clusterCost.GetNodepoolCost(testNodePool)
 			Expect(initialCost).To(BeNumerically("~", 1.50, 0.001))
 			overlay := test.NodeOverlay(v1alpha1.NodeOverlay{
 				Spec: v1alpha1.NodeOverlaySpec{
-					Requirements: []corev1.NodeSelectorRequirement{
+					Requirements: []v1alpha1.NodeSelectorRequirement{
 						{
 							Key:      v1.NodePoolLabelKey,
 							Operator: corev1.NodeSelectorOpIn,
 							Values:   []string{testNodePool.Name},
 						},
 					},
-					PriceAdjustment: lo.ToPtr("+2.5"),
-					Weight:          lo.ToPtr(int32(10000)),
+					PriceAdjustment: new("+2.5"),
+					Weight:          new(int32(10000)),
 				},
 			})
 
@@ -322,8 +318,7 @@ var _ = Describe("ClusterCost", func() {
 			var err error
 			cloudProvider.InstanceTypes, err = nodeOverlayStore.ApplyAll(testNodePool.Name, cloudProvider.InstanceTypes)
 			Expect(err).To(Succeed())
-			err = clusterCost.UpdateOfferings(ctx, testNodePool, cloudProvider.InstanceTypes)
-			Expect(err).To(Succeed())
+			clusterCost.UpdateOfferings(ctx, testNodePool, cloudProvider.InstanceTypes)
 
 			// Verify cost has been updated to reflect new price
 			updatedCost := clusterCost.GetNodepoolCost(testNodePool)
@@ -345,9 +340,9 @@ var _ = Describe("ClusterCost", func() {
 			spotNodeClaim2 := createTestNodeClaim(testNodePool2, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
 			spotNodeClaim2.Name = "test-nodeclaim-spot2"
 
-			clusterCost.UpdateNodeClaim(ctx, spotNodeClaim1)
-			clusterCost.UpdateNodeClaim(ctx, onDemandNodeClaim1)
-			clusterCost.UpdateNodeClaim(ctx, spotNodeClaim2)
+			Expect(clusterCost.UpdateNodeClaim(ctx, spotNodeClaim1)).To(Succeed())
+			Expect(clusterCost.UpdateNodeClaim(ctx, onDemandNodeClaim1)).To(Succeed())
+			Expect(clusterCost.UpdateNodeClaim(ctx, spotNodeClaim2)).To(Succeed())
 
 			// Verify initial costs
 			initialNodePool1Cost := clusterCost.GetNodepoolCost(testNodePool)
@@ -380,8 +375,8 @@ var _ = Describe("ClusterCost", func() {
 			cloudProvider.InstanceTypes = []*cloudprovider.InstanceType{updatedInstanceType}
 
 			// Call UpdateOfferings to trigger cost recalculation
-			_ = clusterCost.UpdateOfferings(ctx, testNodePool, cloudProvider.InstanceTypes)
-			_ = clusterCost.UpdateOfferings(ctx, testNodePool2, cloudProvider.InstanceTypes)
+			clusterCost.UpdateOfferings(ctx, testNodePool, cloudProvider.InstanceTypes)
+			clusterCost.UpdateOfferings(ctx, testNodePool2, cloudProvider.InstanceTypes)
 
 			// Verify costs have been updated across all nodepools
 			finalNodePool1Cost := clusterCost.GetNodepoolCost(testNodePool)
@@ -394,6 +389,60 @@ var _ = Describe("ClusterCost", func() {
 				"NodePool2 cost should reflect updated spot offering price")
 			Expect(finalClusterCost).To(BeNumerically("~", 8.00, 0.001), // 5.50 + 2.50
 				"Cluster cost should be sum of all updated nodepool costs")
+		})
+		It("should track count correctly when re-adding an offering after the key was deleted", func() {
+			// The retry path in internalAddOffering (when an offering key was
+			// deleted after count hit 0) didn't increment oc.Count. The offering
+			// was re-added with Count: 0, so UpdateOfferings recomputed
+			// 0 * price = $0 instead of 1 * price. This caused cost tracking
+			// to undercount after any offering type fully scaled down and back up.
+			//
+			// To trigger: keep an anchor alive (so nodepool survives), cycle a
+			// different offering through add→remove→re-add.
+
+			// Use two different instance types so the offering key deleted
+			// for one doesn't get recreated when the other's nodepool update runs
+			spotInstance := &cloudprovider.InstanceType{
+				Name:      "spot-only",
+				Offerings: []*cloudprovider.Offering{spotOffering},
+			}
+			odInstance := &cloudprovider.InstanceType{
+				Name:      "od-only",
+				Offerings: []*cloudprovider.Offering{onDemandOffering},
+			}
+			cloudProvider.InstanceTypes = []*cloudprovider.InstanceType{spotInstance, odInstance}
+
+			// Add anchor with on-demand instance
+			anchor := createTestNodeClaim(testNodePool, odInstance.Name, onDemandOffering.CapacityType(), onDemandOffering.Zone())
+			anchor.Name = "anchor"
+			Expect(clusterCost.UpdateNodeClaim(ctx, anchor)).To(Succeed())
+			Expect(clusterCost.GetClusterCost()).To(BeNumerically("~", 3.00, 0.001))
+
+			// Add and remove a spot nodeclaim
+			nc1 := createTestNodeClaim(testNodePool, spotInstance.Name, spotOffering.CapacityType(), spotOffering.Zone())
+			nc1.Name = "spot-first"
+			Expect(clusterCost.UpdateNodeClaim(ctx, nc1)).To(Succeed())
+			Expect(clusterCost.GetClusterCost()).To(BeNumerically("~", 4.50, 0.001))
+			Expect(clusterCost.DeleteNodeClaim(ctx, client.ObjectKeyFromObject(nc1))).To(Succeed())
+			Expect(clusterCost.GetClusterCost()).To(BeNumerically("~", 3.00, 0.001))
+
+			// Re-add spot — the spot offering key was deleted from the map
+			// but nodepool survives. This triggers internalNodepoolUpdate.
+			nc2 := createTestNodeClaim(testNodePool, spotInstance.Name, spotOffering.CapacityType(), spotOffering.Zone())
+			nc2.Name = "spot-second"
+			Expect(clusterCost.UpdateNodeClaim(ctx, nc2)).To(Succeed())
+
+			cost := clusterCost.GetClusterCost()
+			Expect(cost).To(BeNumerically("~", 4.50, 0.001),
+				fmt.Sprintf("cost should be 4.50 (3.00 anchor + 1.50 spot), got %v", cost))
+
+			// Now trigger UpdateOfferings which recomputes cost from Count * Price.
+			// If the count was not incremented properly (stayed at 0 instead of 1),
+			// updateCost() will compute 0*1.50 + 1*3.00 = 3.00 instead of 4.50.
+			clusterCost.UpdateOfferings(ctx, testNodePool, cloudProvider.InstanceTypes)
+			costAfterRefresh := clusterCost.GetClusterCost()
+			Expect(costAfterRefresh).To(BeNumerically("~", 4.50, 0.001),
+				fmt.Sprintf("cost should still be 4.50 after UpdateOfferings recomputes from counts, got %v — indicates count was not incremented on re-add", costAfterRefresh))
 		})
 	})
 
@@ -415,12 +464,12 @@ var _ = Describe("ClusterCost", func() {
 			wg.Add(numGoroutines)
 
 			// Launch multiple goroutines that concurrently add nodeclaims
-			for i := 0; i < numGoroutines; i++ {
+			for i := range numGoroutines {
 				go func(goroutineIndex int) {
 					defer wg.Done()
-					for j := 0; j < numOperationsPerGoroutine; j++ {
+					for j := range numOperationsPerGoroutine {
 						nodeClaimIndex := goroutineIndex*numOperationsPerGoroutine + j
-						clusterCost.UpdateNodeClaim(ctx, nodeClaims[nodeClaimIndex])
+						Expect(clusterCost.UpdateNodeClaim(ctx, nodeClaims[nodeClaimIndex])).To(Succeed())
 					}
 				}(i)
 			}
@@ -442,11 +491,11 @@ var _ = Describe("ClusterCost", func() {
 			var nodeClaims []*v1.NodeClaim
 
 			// Setup: Pre-populate with nodeclaims to remove
-			for i := 0; i < totalOperations; i++ {
+			for i := range totalOperations {
 				nodeClaim := createTestNodeClaim(testNodePool, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
 				nodeClaim.Name = fmt.Sprintf("test-nodeclaim-%d", i)
 				nodeClaims = append(nodeClaims, nodeClaim)
-				clusterCost.UpdateNodeClaim(ctx, nodeClaim)
+				Expect(clusterCost.UpdateNodeClaim(ctx, nodeClaim)).To(Succeed())
 			}
 
 			// Verify setup
@@ -458,12 +507,12 @@ var _ = Describe("ClusterCost", func() {
 			wg.Add(numGoroutines)
 
 			// Launch multiple goroutines that concurrently remove nodeclaims
-			for i := 0; i < numGoroutines; i++ {
+			for i := range numGoroutines {
 				go func(goroutineIndex int) {
 					defer wg.Done()
-					for j := 0; j < numOperationsPerGoroutine; j++ {
+					for j := range numOperationsPerGoroutine {
 						nodeClaimIndex := goroutineIndex*numOperationsPerGoroutine + j
-						clusterCost.DeleteNodeClaim(ctx, nodeClaims[nodeClaimIndex])
+						Expect(clusterCost.DeleteNodeClaim(ctx, client.ObjectKeyFromObject(nodeClaims[nodeClaimIndex]))).To(Succeed())
 					}
 				}(i)
 			}
@@ -488,7 +537,7 @@ var _ = Describe("ClusterCost", func() {
 			var nodeClaims []*v1.NodeClaim
 
 			// Pre-create nodeclaims for concurrent operations
-			for i := 0; i < operationsPerWriter; i++ {
+			for i := range operationsPerWriter {
 				nodeClaim := createTestNodeClaim(testNodePool, testInstanceType.Name, spotOffering.CapacityType(), spotOffering.Zone())
 				nodeClaim.Name = fmt.Sprintf("test-nodeclaim-%d", i)
 				nodeClaims = append(nodeClaims, nodeClaim)
@@ -496,7 +545,7 @@ var _ = Describe("ClusterCost", func() {
 
 			// Launch reader goroutines that continuously read costs
 			wg.Add(numReaders)
-			for i := 0; i < numReaders; i++ {
+			for range numReaders {
 				go func() {
 					defer GinkgoRecover()
 					defer wg.Done()
@@ -519,18 +568,18 @@ var _ = Describe("ClusterCost", func() {
 
 			// Launch writer goroutines that add and remove nodeclaims
 			wg.Add(numWriters)
-			for i := 0; i < numWriters; i++ {
+			for i := range numWriters {
 				go func(_ int) {
 					defer GinkgoRecover()
 					defer wg.Done()
-					for j := 0; j < operationsPerWriter; j++ {
+					for j := range operationsPerWriter {
 						// Randomly add or remove nodeclaims
 						if j%2 == 0 {
-							clusterCost.UpdateNodeClaim(ctx, nodeClaims[j])
+							Expect(clusterCost.UpdateNodeClaim(ctx, nodeClaims[j])).To(Succeed())
 						} else {
 							// Only remove if we've added some nodeclaims
 							if j > 0 {
-								clusterCost.DeleteNodeClaim(ctx, nodeClaims[j-1])
+								Expect(clusterCost.DeleteNodeClaim(ctx, client.ObjectKeyFromObject(nodeClaims[j-1]))).To(Succeed())
 							}
 						}
 
@@ -585,7 +634,7 @@ func RunUpdateNodeClaimTest(clusterCost *cost.ClusterCost, np *v1.NodePool, inst
 
 	// Create and add the nodeclaim
 	nodeClaim := createTestNodeClaim(np, instanceName, capacityType, zone)
-	clusterCost.UpdateNodeClaim(ctx, nodeClaim)
+	Expect(clusterCost.UpdateNodeClaim(ctx, nodeClaim)).To(Succeed())
 
 	// Verify that nodepool cost has been updated correctly
 	finalNodePoolCost := clusterCost.GetNodepoolCost(np)
@@ -611,7 +660,7 @@ func RunDeleteNodeClaimTest(clusterCost *cost.ClusterCost, nodeClaim *v1.NodeCla
 	initialClusterCost := clusterCost.GetClusterCost()
 
 	// Remove the nodeclaim
-	clusterCost.DeleteNodeClaim(ctx, nodeClaim)
+	Expect(clusterCost.DeleteNodeClaim(ctx, client.ObjectKeyFromObject(nodeClaim))).To(Succeed())
 
 	// Verify that nodepool cost has been updated correctly
 	finalNodePoolCost := clusterCost.GetNodepoolCost(np)

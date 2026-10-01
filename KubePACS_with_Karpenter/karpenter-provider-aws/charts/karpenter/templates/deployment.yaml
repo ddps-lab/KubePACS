@@ -126,7 +126,7 @@ spec:
                   divisor: "0"
                   resource: limits.memory
             - name: FEATURE_GATES
-              value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }},NodeOverlay={{ .Values.settings.featureGates.nodeOverlay }},StaticCapacity={{ .Values.settings.featureGates.staticCapacity }}"
+              value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }},NodeOverlay={{ .Values.settings.featureGates.nodeOverlay }},StaticCapacity={{ .Values.settings.featureGates.staticCapacity }},CapacityBuffer={{ .Values.settings.featureGates.capacityBuffer }}"
           {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
               value: "{{ tpl (toString .) $ }}"
@@ -169,6 +169,10 @@ spec:
             - name: INTERRUPTION_QUEUE
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.enableZonalShift }}
+            - name: ENABLE_ZONAL_SHIFT
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.settings.reservedENIs }}
             - name: RESERVED_ENIS
               value: "{{ tpl (toString .) $ }}"
@@ -196,6 +200,18 @@ spec:
               value: "{{ tpl (toString .scenarioInstanceLabel) $ }}"
             - name: KUBEPACS_SOLVER_PATH
               value: "{{ tpl (toString .solverPath) $ }}"
+          {{- with .unavailableOfferingsTTL }}
+            - name: KUBEPACS_UNAVAILABLE_OFFERINGS_TTL
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- end }}
+          {{- with .Values.settings.amiRefreshInterval }}
+            - name: AMI_REFRESH_INTERVAL
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.subnetRefreshInterval }}
+            - name: SUBNET_REFRESH_INTERVAL
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}

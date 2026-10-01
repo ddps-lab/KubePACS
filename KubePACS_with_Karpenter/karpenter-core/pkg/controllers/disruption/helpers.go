@@ -23,6 +23,7 @@ import (
 
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
@@ -34,13 +35,13 @@ import (
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	disruptionevents "sigs.k8s.io/karpenter/pkg/controllers/disruption/events"
-	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/metrics"
 	operatorlogging "sigs.k8s.io/karpenter/pkg/operator/logging"
+	"sigs.k8s.io/karpenter/pkg/state/cost"
 	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 	nodepoolutils "sigs.k8s.io/karpenter/pkg/utils/nodepool"
 	"sigs.k8s.io/karpenter/pkg/utils/pdb"
@@ -49,8 +50,8 @@ import (
 var errCandidateDeleting = fmt.Errorf("candidate is deleting")
 
 //nolint:gocyclo
-func SimulateScheduling(ctx context.Context, kubeClient client.Client, cluster *state.Cluster, provisioner *provisioning.Provisioner,
-	candidates ...*Candidate,
+func SimulateScheduling(ctx context.Context, kubeClient client.Client, cluster *state.Cluster, provisioner *provisioning.Provisioner, clk clock.Clock, recorder events.Recorder,
+	schedulerOpts []scheduling.Options, candidates ...*Candidate,
 ) (scheduling.Results, error) {
 	candidateNames := sets.NewString(lo.Map(candidates, func(t *Candidate, i int) string { return t.Name() })...)
 	nodes := cluster.DeepCopyNodes()
@@ -81,15 +82,20 @@ func SimulateScheduling(ctx context.Context, kubeClient client.Client, cluster *
 	if err != nil {
 		return scheduling.Results{}, fmt.Errorf("tracking PodDisruptionBudgets, %w", err)
 	}
+	// candidatePods are the pods on consolidation candidate nodes that we will reschedule. Their UIDs feed
+	// deletingPodUIDs below so the DRA allocator frees the devices they hold and re-allocates their claims onto the
+	// replacement capacity, mirroring how pods on already-deleting nodes are treated.
+	var candidatePods []*corev1.Pod
 	for _, n := range candidates {
 		currentlyReschedulablePods := lo.Filter(n.reschedulablePods, func(p *corev1.Pod, _ int) bool {
-			return pdbs.IsCurrentlyReschedulable(p)
+			return pdbs.IsCurrentlyReschedulable(p, clk, recorder)
 		})
-		pods = append(pods, currentlyReschedulablePods...)
+		candidatePods = append(candidatePods, currentlyReschedulablePods...)
 	}
+	pods = append(pods, candidatePods...)
 
 	// We get the pods that are on nodes that are deleting
-	deletingNodePods, err := deletingNodes.CurrentlyReschedulablePods(ctx, kubeClient)
+	deletingNodePods, err := deletingNodes.CurrentlyReschedulablePods(ctx, kubeClient, clk, recorder)
 	if err != nil {
 		return scheduling.Results{}, fmt.Errorf("failed to get pods from deleting nodes, %w", err)
 	}
@@ -100,17 +106,22 @@ func SimulateScheduling(ctx context.Context, kubeClient client.Client, cluster *
 		opts = append(opts, scheduling.IgnorePreferences)
 	}
 	opts = append(opts, scheduling.MinValuesPolicy(options.FromContext(ctx).MinValuesPolicy))
+	opts = append(opts, schedulerOpts...)
+	// Both consolidation candidate pods and pods on already-deleting nodes are migrating off their current nodes, so
+	// the DRA allocator should treat the devices they hold as available for reallocation (and re-allocate their claims).
+	deletingPodUIDs := sets.New(lo.Map(append(candidatePods, deletingNodePods...), func(p *corev1.Pod, _ int) types.UID { return p.UID })...)
 	scheduler, err := provisioner.NewScheduler(
 		log.IntoContext(ctx, operatorlogging.NopLogger),
 		pods,
 		stateNodes,
+		deletingPodUIDs,
 		opts...,
 	)
 	if err != nil {
 		return scheduling.Results{}, fmt.Errorf("creating scheduler, %w", err)
 	}
 
-	deletingNodePodKeys := lo.SliceToMap(deletingNodePods, func(p *corev1.Pod) (client.ObjectKey, interface{}) {
+	deletingNodePodKeys := lo.SliceToMap(deletingNodePods, func(p *corev1.Pod) (client.ObjectKey, any) {
 		return client.ObjectKeyFromObject(p), nil
 	})
 
@@ -170,24 +181,44 @@ func instanceTypesAreSubset(lhs []*cloudprovider.InstanceType, rhs []*cloudprovi
 	return len(rhsNames.Intersection(lhsNames)) == len(lhsNames)
 }
 
-// GetCandidates returns nodes that appear to be currently deprovisionable based off of their nodePool
+// GetCandidates returns nodes that appear to be currently deprovisionable based off of their nodePool.
 func GetCandidates(ctx context.Context, cluster *state.Cluster, kubeClient client.Client, recorder events.Recorder, clk clock.Clock,
 	cloudProvider cloudprovider.CloudProvider, shouldDisrupt CandidateFilter, disruptionClass string, queue *Queue,
 ) ([]*Candidate, error) {
+	candidates, _, err := GetCandidatesWithTotals(ctx, cluster, kubeClient, recorder, clk, cloudProvider, shouldDisrupt, disruptionClass, queue, nil)
+	return candidates, err
+}
+
+// GetCandidatesWithTotals returns candidates and NodePoolTotals computed from all
+// candidates before filtering, so balanced scoring normalizes against the full pool.
+// When clusterCost is non-nil, TotalCost is read from precomputed cluster state
+// rather than re-summed from candidates.
+func GetCandidatesWithTotals(ctx context.Context, cluster *state.Cluster, kubeClient client.Client, recorder events.Recorder, clk clock.Clock,
+	cloudProvider cloudprovider.CloudProvider, shouldDisrupt CandidateFilter, disruptionClass string, queue *Queue, clusterCost *cost.ClusterCost,
+) ([]*Candidate, map[string]NodePoolTotals, error) {
 	nodePoolMap, nodePoolToInstanceTypesMap, err := BuildNodePoolMap(ctx, kubeClient, cloudProvider)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pdbs, err := pdb.NewLimits(ctx, kubeClient)
 	if err != nil {
-		return nil, fmt.Errorf("tracking PodDisruptionBudgets, %w", err)
+		return nil, nil, fmt.Errorf("tracking PodDisruptionBudgets, %w", err)
 	}
-	candidates := lo.FilterMap(cluster.DeepCopyNodes(), func(n *state.StateNode, _ int) (*Candidate, bool) {
+	allNodes := cluster.DeepCopyNodes()
+	allCandidates := lo.FilterMap(allNodes, func(n *state.StateNode, _ int) (*Candidate, bool) {
 		cn, e := NewCandidate(ctx, kubeClient, recorder, clk, n, pdbs, nodePoolMap, nodePoolToInstanceTypesMap, queue, disruptionClass)
 		return cn, e == nil
 	})
-	// Filter only the valid candidates that we should disrupt
-	return lo.Filter(candidates, func(c *Candidate, _ int) bool { return shouldDisrupt(ctx, c) }), nil
+	// Compute totals using ALL nodes for disruption cost denominator (RFC requirement:
+	// "Non-candidate nodes still contribute to the denominators").
+	nodePoolTotals := computeNodePoolTotals(ctx, allCandidates, stateNodesToSlice(allNodes), clusterCost)
+	filtered := lo.Filter(allCandidates, func(c *Candidate, _ int) bool { return shouldDisrupt(ctx, c) })
+	return filtered, nodePoolTotals, nil
+}
+
+// stateNodesToSlice converts StateNodes to []*StateNode for computeNodePoolTotals.
+func stateNodesToSlice(nodes state.StateNodes) []*state.StateNode {
+	return []*state.StateNode(nodes)
 }
 
 // BuildNodePoolMap builds a provName -> nodePool map and a provName -> instanceName -> instance type map
@@ -204,13 +235,13 @@ func BuildNodePoolMap(ctx context.Context, kubeClient client.Client, cloudProvid
 
 		nodePoolInstanceTypes, err := cloudProvider.GetInstanceTypes(ctx, np)
 		if err != nil {
-			if nodeoverlay.IsUnevaluatedNodePoolError(err) {
-				log.FromContext(ctx).WithValues("NodePool", klog.KObj(np)).Error(err, "skipping, node overlies are not applied")
+			if cloudprovider.IsUnevaluatedNodePoolError(err) {
+				log.FromContext(ctx).WithValues("NodePool", klog.KObj(np)).Error(err, "skipping, node overlays are not applied")
 				continue
 			}
 			// don't error out on building the node pool, we just won't be able to handle any nodes that
 			// were created by it
-			log.FromContext(ctx).Error(err, fmt.Sprintf("failed listing instance types for %s", np.Name))
+			log.FromContext(ctx).Error(err, "failed listing instance types", "nodepool", np.Name)
 			continue
 		}
 		if len(nodePoolInstanceTypes) == 0 {
@@ -269,6 +300,9 @@ func BuildDisruptionBudgetMapping(ctx context.Context, cluster *state.Cluster, c
 		allowedDisruptions := nodePool.MustGetAllowedDisruptions(clk, numNodes[nodePool.Name], reason)
 		disruptionBudgetMapping[nodePool.Name] = lo.Max([]int{allowedDisruptions - disrupting[nodePool.Name], 0})
 		NodePoolAllowedDisruptions.Set(float64(allowedDisruptions), map[string]string{
+			metrics.NodePoolLabel: nodePool.Name, metrics.ReasonLabel: string(reason),
+		})
+		NodePoolNodesConsumingBudgets.Set(float64(disrupting[nodePool.Name]), map[string]string{
 			metrics.NodePoolLabel: nodePool.Name, metrics.ReasonLabel: string(reason),
 		})
 		if numNodes[nodePool.Name] != 0 && allowedDisruptions == 0 {

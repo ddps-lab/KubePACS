@@ -194,10 +194,10 @@ func (t *Topology) Update(ctx context.Context, p *corev1.Pod) error {
 }
 
 // Record records the topology changes given that pod p schedule on a node with the given requirements
-func (t *Topology) Record(p *corev1.Pod, taints []corev1.Taint, requirements scheduling.Requirements, compatabilityOptions ...option.Function[scheduling.CompatibilityOptions]) {
+func (t *Topology) Record(p *corev1.Pod, taints []corev1.Taint, requirements scheduling.Requirements, compatibilityOptions ...option.Function[scheduling.CompatibilityOptions]) {
 	// once we've committed to a domain, we record the usage in every topology that cares about it
 	for _, tg := range t.topologyGroups {
-		if tg.Counts(p, taints, requirements, compatabilityOptions...) {
+		if tg.Counts(p, taints, requirements, compatibilityOptions...) {
 			domains := requirements.Get(tg.Key)
 			if tg.Type == TopologyTypePodAntiAffinity {
 				// for anti-affinity topologies we need to block out all possible domains that the pod could land in
@@ -223,9 +223,9 @@ func (t *Topology) Record(p *corev1.Pod, taints []corev1.Taint, requirements sch
 // affinities, anti-affinities or inverse anti-affinities.  The nodeHostname is the hostname that we are currently considering
 // placing the pod on.  It returns these newly tightened requirements, or an error in the case of a set of requirements that
 // cannot be satisfied.
-func (t *Topology) AddRequirements(p *corev1.Pod, taints []corev1.Taint, podRequirements, nodeRequirements scheduling.Requirements, compatabilityOptions ...option.Function[scheduling.CompatibilityOptions]) (scheduling.Requirements, error) {
+func (t *Topology) AddRequirements(p *corev1.Pod, taints []corev1.Taint, podRequirements, nodeRequirements scheduling.Requirements, compatibilityOptions ...option.Function[scheduling.CompatibilityOptions]) (scheduling.Requirements, error) {
 	requirements := scheduling.NewRequirements(nodeRequirements.Values()...)
-	for _, topology := range t.getMatchingTopologies(p, taints, nodeRequirements, compatabilityOptions...) {
+	for _, topology := range t.getMatchingTopologies(p, taints, nodeRequirements, compatibilityOptions...) {
 		podDomains := scheduling.NewRequirement(topology.Key, corev1.NodeSelectorOpExists)
 		if podRequirements.Has(topology.Key) {
 			podDomains = podRequirements.Get(topology.Key)
@@ -234,7 +234,7 @@ func (t *Topology) AddRequirements(p *corev1.Pod, taints []corev1.Taint, podRequ
 		if nodeRequirements.Has(topology.Key) {
 			nodeDomains = nodeRequirements.Get(topology.Key)
 		}
-		domains := topology.Get(p, podDomains, nodeDomains)
+		domains, _ := topology.Get(p, podDomains, nodeDomains)
 		if domains.Len() == 0 {
 			return nil, topologyError{
 				topology:    topology,
@@ -245,6 +245,39 @@ func (t *Topology) AddRequirements(p *corev1.Pod, taints []corev1.Taint, podRequ
 		requirements.Add(domains)
 	}
 	return requirements, nil
+}
+
+// GetTopologyZoneConstraints returns the set of valid zones from all topology constraints
+// that use the zone topology key for the given pod, along with whether the constraints are satisfiable.
+func (t *Topology) GetTopologyZoneConstraints(p *corev1.Pod, podRequirements scheduling.Requirements) (sets.Set[string], bool) {
+	var result sets.Set[string]
+
+	for _, topology := range t.topologyGroups {
+		if !topology.IsOwnedBy(p.UID) || topology.Key != corev1.LabelTopologyZone {
+			continue
+		}
+
+		podDomains := scheduling.NewRequirement(topology.Key, corev1.NodeSelectorOpExists)
+		if podRequirements.Has(topology.Key) {
+			podDomains = podRequirements.Get(topology.Key)
+		}
+		nodeDomains := scheduling.NewRequirement(topology.Key, corev1.NodeSelectorOpExists)
+		_, validDomains := topology.Get(p, podDomains, nodeDomains)
+
+		if validDomains.Len() == 0 {
+			return nil, false
+		}
+		if result == nil {
+			result = validDomains
+		} else {
+			for zone := range result {
+				if !validDomains.Has(zone) {
+					delete(result, zone)
+				}
+			}
+		}
+	}
+	return result, true
 }
 
 // Register is used to register a domain as available across topologies for the given topology key.
@@ -525,7 +558,7 @@ func (t *Topology) buildNamespaceList(ctx context.Context, namespace string, nam
 
 // getMatchingTopologies returns a sorted list of topologies that either control the scheduling of pod p, or for which
 // the topology selects pod p and the scheduling of p affects the count per topology domain
-func (t *Topology) getMatchingTopologies(p *corev1.Pod, taints []corev1.Taint, requirements scheduling.Requirements, compatabilityOptions ...option.Function[scheduling.CompatibilityOptions]) []*TopologyGroup {
+func (t *Topology) getMatchingTopologies(p *corev1.Pod, taints []corev1.Taint, requirements scheduling.Requirements, compatibilityOptions ...option.Function[scheduling.CompatibilityOptions]) []*TopologyGroup {
 	var matchingTopologies []*TopologyGroup
 	for _, tg := range t.topologyGroups {
 		if tg.IsOwnedBy(p.UID) {
@@ -533,7 +566,7 @@ func (t *Topology) getMatchingTopologies(p *corev1.Pod, taints []corev1.Taint, r
 		}
 	}
 	for _, tg := range t.inverseTopologyGroups {
-		if tg.Counts(p, taints, requirements, compatabilityOptions...) {
+		if tg.Counts(p, taints, requirements, compatibilityOptions...) {
 			matchingTopologies = append(matchingTopologies, tg)
 		}
 	}

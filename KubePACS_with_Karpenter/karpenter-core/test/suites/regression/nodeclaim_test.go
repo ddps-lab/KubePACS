@@ -31,7 +31,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/awslabs/operatorpkg/object"
-	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -45,13 +44,11 @@ var _ = Describe("NodeClaim", func() {
 			requirements = nodePool.Spec.Template.Spec.Requirements
 			if env.IsDefaultNodeClassKWOK() {
 				requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values: []string{
-							"c-16x-amd64-linux",
-							"c-16x-arm64-linux",
-						},
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						"c-16x-amd64-linux",
+						"c-16x-arm64-linux",
 					},
 				})
 			}
@@ -155,7 +152,7 @@ var _ = Describe("NodeClaim", func() {
 					Kind:               "NodeClaim",
 					Name:               nodeClaim.Name,
 					UID:                nodeClaim.UID,
-					BlockOwnerDeletion: lo.ToPtr(true),
+					BlockOwnerDeletion: new(true),
 				},
 			))
 			env.EventuallyExpectCreatedNodeClaimCount("==", 1)

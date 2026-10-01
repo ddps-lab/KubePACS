@@ -54,17 +54,13 @@ var _ = BeforeEach(func() {
 	nodePool = env.DefaultNodePool(nodeClass)
 	nodePool = coretest.ReplaceRequirements(nodePool,
 		karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceCategory,
-				Operator: corev1.NodeSelectorOpExists,
-			},
+			Key:      v1.LabelInstanceCategory,
+			Operator: corev1.NodeSelectorOpExists,
 		},
 		karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      corev1.LabelInstanceTypeStable,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"c5.large"},
-			},
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"c5.large"},
 		},
 	)
 })
@@ -105,9 +101,11 @@ var _ = Describe("IPv6", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		node := env.GetNode(pod.Spec.NodeName)
 		instance := env.GetInstanceByID(env.ExpectParsedProviderID(node.Spec.ProviderID))
-		Expect(instance.NetworkInterfaces).To(HaveLen(1))
-		Expect(instance.NetworkInterfaces[0].Ipv6Addresses).To(HaveLen(1))
-		_, hasIPv6Primary := lo.Find(instance.NetworkInterfaces[0].Ipv6Addresses, func(ip types.InstanceIpv6Address) bool {
+		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
+		primaryNI, found := aws.FindNetworkInterface(instance.NetworkInterfaces, 0, 0)
+		Expect(found).To(BeTrue())
+		Expect(primaryNI.Ipv6Addresses).To(HaveLen(1))
+		_, hasIPv6Primary := lo.Find(primaryNI.Ipv6Addresses, func(ip types.InstanceIpv6Address) bool {
 			return lo.FromPtr(ip.IsPrimaryIpv6)
 		})
 		Expect(hasIPv6Primary).To(BeTrue())

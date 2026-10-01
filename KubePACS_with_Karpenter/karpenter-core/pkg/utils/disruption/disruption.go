@@ -18,7 +18,6 @@ package disruption
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"strconv"
 
@@ -52,8 +51,8 @@ func EvictionCost(ctx context.Context, p *corev1.Pod) float64 {
 	if ok {
 		podDeletionCost, err := strconv.ParseFloat(podDeletionCostStr, 64)
 		if err != nil {
-			log.FromContext(ctx).Error(err, fmt.Sprintf("failed parsing %s=%s from pod %s",
-				corev1.PodDeletionCost, podDeletionCostStr, client.ObjectKeyFromObject(p)))
+			log.FromContext(ctx).Error(err, "failed parsing pod deletion cost",
+				"annotation", corev1.PodDeletionCost, "value", podDeletionCostStr, "pod", client.ObjectKeyFromObject(p))
 		} else {
 			// the pod deletion disruptionCost is in [-2147483647, 2147483647]
 			// the min pod disruptionCost makes one pod ~ -15 pods, and the max pod disruptionCost to ~ 17 pods.
@@ -75,4 +74,20 @@ func ReschedulingCost(ctx context.Context, pods []*corev1.Pod) float64 {
 		cost += EvictionCost(ctx, p)
 	}
 	return cost
+}
+
+func IsUnderConsolidateAfter(nodePool *v1.NodePool, nodeClaim *v1.NodeClaim, c clock.Clock) bool {
+	if nodePool == nil || nodeClaim == nil || nodePool.Spec.Disruption.ConsolidateAfter.Duration == nil || lo.FromPtr(nodePool.Spec.Disruption.ConsolidateAfter.Duration) == 0 {
+		return false
+	}
+	if !nodeClaim.StatusConditions().IsTrue(v1.ConditionTypeInitialized) {
+		return false
+	}
+	initialized := nodeClaim.StatusConditions().Get(v1.ConditionTypeInitialized)
+
+	// If the lastPodEvent is zero, use the time that the nodeclaim was initialized, as that's when Karpenter recognizes that pods could have started scheduling
+	timeToCheck := lo.Ternary(!nodeClaim.Status.LastPodEventTime.IsZero(), nodeClaim.Status.LastPodEventTime.Time, initialized.LastTransitionTime.Time)
+
+	// Consider a node under the effect of consolidateAfter by looking at the lastPodEvent status field on the nodeclaim.
+	return c.Since(timeToCheck) < lo.FromPtr(nodePool.Spec.Disruption.ConsolidateAfter.Duration)
 }

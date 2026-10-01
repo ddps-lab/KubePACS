@@ -15,15 +15,20 @@ limitations under the License.
 package bootstrap
 
 import (
+	"context"
+	"errors"
+	"strings"
+
 	"github.com/pelletier/go-toml/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func NewBottlerocketConfig(userdata *string) (*BottlerocketConfig, error) {
+func NewBottlerocketConfig(ctx context.Context, userdata *string) (*BottlerocketConfig, error) {
 	c := &BottlerocketConfig{}
 	if userdata == nil {
 		return c, nil
 	}
-	if err := c.UnmarshalTOML([]byte(*userdata)); err != nil {
+	if err := c.UnmarshalTOML(ctx, []byte(*userdata)); err != nil {
 		return c, err
 	}
 	return c, nil
@@ -31,8 +36,8 @@ func NewBottlerocketConfig(userdata *string) (*BottlerocketConfig, error) {
 
 // BottlerocketConfig is the root of the bottlerocket config, see more here https://github.com/bottlerocket-os/bottlerocket#using-user-data
 type BottlerocketConfig struct {
-	SettingsRaw map[string]interface{} `toml:"settings"`
-	Settings    BottlerocketSettings   `toml:"-"`
+	SettingsRaw map[string]any       `toml:"settings"`
+	Settings    BottlerocketSettings `toml:"-"`
 }
 
 // BottlerocketSettings is a subset of all configuration in https://github.com/bottlerocket-os/bottlerocket/blob/d427c40931cba6e6bedc5b75e9c084a6e1818db9/sources/models/src/lib.rs#L260
@@ -71,11 +76,15 @@ type BottlerocketKubernetes struct {
 	ContainerLogMaxSize                *string                                   `toml:"container-log-max-size,omitempty"`
 	ContainerLogMaxFiles               *int                                      `toml:"container-log-max-files,omitempty"`
 	CPUManagerPolicy                   *string                                   `toml:"cpu-manager-policy,omitempty"`
+	CPUManagerPolicyOptions            []string                                  `toml:"cpu-manager-policy-options,omitempty"`
 	CPUManagerReconcilePeriod          *string                                   `toml:"cpu-manager-reconcile-period,omitempty"`
+	MemoryManagerPolicy                *string                                   `toml:"memory-manager-policy,omitempty"`
 	TopologyManagerScope               *string                                   `toml:"topology-manager-scope,omitempty"`
 	TopologyManagerPolicy              *string                                   `toml:"topology-manager-policy,omitempty"`
+	TopologyManagerPolicyOptions       *BottlerocketTopologyManagerPolicyOptions `toml:"topology-manager-policy-options,omitempty"`
 	ImageGCHighThresholdPercent        *string                                   `toml:"image-gc-high-threshold-percent,omitempty"`
 	ImageGCLowThresholdPercent         *string                                   `toml:"image-gc-low-threshold-percent,omitempty"`
+	IdsPerPod                          *int                                      `toml:"ids-per-pod,omitempty"`
 	CPUCFSQuota                        *bool                                     `toml:"cpu-cfs-quota-enforced,omitempty"`
 	ShutdownGracePeriod                *string                                   `toml:"shutdown-grace-period,omitempty"`
 	ShutdownGracePeriodForCriticalPods *string                                   `toml:"shutdown-grace-period-for-critical-pods,omitempty"`
@@ -103,6 +112,13 @@ type BottlerocketCredentialProvider struct {
 	Environment   map[string]string `toml:"environment,omitempty"`
 }
 
+// BottlerocketTopologyManagerPolicyOptions maps to KubernetesTopologyManagerPolicyOptions in the Bottlerocket settings SDK.
+// https://github.com/bottlerocket-os/bottlerocket-settings-sdk/blob/develop/bottlerocket-settings-models/modeled-types/src/kubernetes.rs
+type BottlerocketTopologyManagerPolicyOptions struct {
+	PreferClosestNumaNodes *bool `toml:"prefer-closest-numa-nodes,omitempty"`
+	MaxAllowableNumaNodes  *int  `toml:"max-allowable-numa-nodes,omitempty"`
+}
+
 type BootstrapCommandMode string
 
 const (
@@ -119,16 +135,39 @@ type BootstrapCommand struct {
 	Essential bool                 `toml:"essential"`
 }
 
-func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
+func (c *BottlerocketConfig) UnmarshalTOML(ctx context.Context, data []byte) error {
 	// unmarshal known settings
 	s := struct {
 		Settings BottlerocketSettings `toml:"settings"`
 	}{}
-	if err := toml.Unmarshal(data, &s); err != nil {
-		return err
-	}
+
 	// unmarshal untyped settings
 	if err := toml.Unmarshal(data, c); err != nil {
+		return err
+	}
+
+	// To log misconfigured / unsupported k8s userData, we re-marshal the k8s settings
+	// and re-unmarshal with TOML strict mode to log any errors
+	if k8sRaw, ok := c.SettingsRaw["kubernetes"]; ok {
+		k8sData, err := toml.Marshal(k8sRaw)
+		if err != nil {
+			return err
+		}
+
+		k8sSettings := BottlerocketKubernetes{}
+		r := strings.NewReader(string(k8sData))
+		d := toml.NewDecoder(r)
+		d.DisallowUnknownFields()
+		if err := d.Decode(&k8sSettings); err != nil {
+			var details *toml.StrictMissingError
+			if errors.As(err, &details) {
+				log.FromContext(ctx).Error(err, "Unknown parameter in userData K8s settings", "reason", details.String())
+			}
+		}
+	}
+
+	// proceed without strict mode
+	if err := toml.Unmarshal(data, &s); err != nil {
 		return err
 	}
 	c.Settings = s.Settings
@@ -137,7 +176,7 @@ func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
 
 func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 	if c.SettingsRaw == nil {
-		c.SettingsRaw = map[string]interface{}{}
+		c.SettingsRaw = map[string]any{}
 	}
 	c.SettingsRaw["kubernetes"] = c.Settings.Kubernetes
 	if c.Settings.BootstrapCommands != nil {

@@ -23,7 +23,6 @@ import (
 
 	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
-	"github.com/samber/lo"
 	"go.uber.org/multierr"
 
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -43,7 +42,6 @@ type PricingController struct {
 	client        client.Client
 	cloudProvider cloudprovider.CloudProvider
 	clusterCost   *cost.ClusterCost
-	npItMap       map[string]map[string]*cloudprovider.InstanceType
 }
 
 func NewPricingController(client client.Client, cloudProvider cloudprovider.CloudProvider, clusterCost *cost.ClusterCost) *PricingController {
@@ -61,64 +59,29 @@ func (c *PricingController) Reconcile(ctx context.Context) (reconciler.Result, e
 		return reconciler.Result{}, err
 	}
 
-	newNpItMap := make(map[string]map[string]*cloudprovider.InstanceType)
 	var errs error
 	for _, np := range npl.Items {
-		oldIts, exists := c.npItMap[client.ObjectKeyFromObject(&np).String()]
 		newIts, err := c.cloudProvider.GetInstanceTypes(ctx, &np)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
-
-		if exists && equal(oldIts, newIts) {
-			continue
-		}
-		if err := c.clusterCost.UpdateOfferings(ctx, &np, newIts); err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-		newNpItMap[client.ObjectKeyFromObject(&np).String()] = lo.SliceToMap(newIts, func(it *cloudprovider.InstanceType) (string, *cloudprovider.InstanceType) {
-			return it.Name, it
-		})
+		c.clusterCost.UpdateOfferings(ctx, &np, newIts)
 	}
 	if errs != nil {
-		return reconciler.Result{}, fmt.Errorf("refreshing pricing info, %w", err)
+		return reconciler.Result{}, fmt.Errorf("refreshing pricing info, %w", errs)
 	}
-	c.npItMap = newNpItMap
 
 	return reconciler.Result{RequeueAfter: 1 * time.Hour}, nil
 }
 
-func equal(oldIts map[string]*cloudprovider.InstanceType, newIts []*cloudprovider.InstanceType) bool {
-	if len(lo.Values(oldIts)) != len(newIts) {
-		return false
-	}
-	for _, it := range newIts {
-		oldIt, exists := oldIts[it.Name]
-		if !exists {
-			return false
-		}
-		oldItOffMap := lo.SliceToMap(oldIt.Offerings, func(o *cloudprovider.Offering) (cost.OfferingKey, *cloudprovider.Offering) {
-			return cost.OfferingKey{CapacityType: o.CapacityType(), Zone: o.Zone(), InstanceName: it.Name}, o
-		})
-		for _, of := range it.Offerings {
-			ofKey := cost.OfferingKey{CapacityType: of.CapacityType(), Zone: of.Zone(), InstanceName: it.Name}
-			oldOf, exists := oldItOffMap[ofKey]
-			if !exists {
-				return false
-			}
-			if oldOf.Price != of.Price {
-				return false
-			}
-		}
-	}
-	return true
+func (c *PricingController) Name() string {
+	return "state.pricing"
 }
 
 func (c *PricingController) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("state.pricing").
+		Named(c.Name()).
 		WatchesRawSource(singleton.Source()).
 		Complete(singleton.AsReconciler(c))
 }

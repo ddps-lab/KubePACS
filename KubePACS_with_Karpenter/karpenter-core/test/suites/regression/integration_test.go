@@ -67,8 +67,17 @@ var _ = Describe("Integration", func() {
 				},
 			})
 			numPods := 1
-			dep = test.Deployment(test.CreateDeploymentOptions("large-app", int32(numPods), "100m", "4",
-				test.WithLabels(map[string]string{"app": "large-app"})))
+			dep = test.Deployment(test.DeploymentOptions{
+				Replicas: int32(numPods),
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "large-app"},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4")},
+					},
+				},
+			})
 		})
 		It("should account for LimitRange Default on daemonSet pods for resources", func() {
 			limitrange.Spec.Limits = []corev1.LimitRangeItem{
@@ -132,6 +141,108 @@ var _ = Describe("Integration", func() {
 				g.Expect(daemonSetPods[0].Spec.NodeName).To(Equal(nodeList.Items[0].Name))
 			}).Should(Succeed())
 		})
+		It("should correctly account for host ports of uncached daemonset pods targeting different instance types", func() {
+			// Two DaemonSets with different host ports target different architectures. Workload pods
+			// requesting those same ports should schedule on the opposite architecture where there's
+			// no conflict. This requires correct per-instance-type grouping of daemon overhead.
+			// NOTE: requires provider to offer both amd64 and arm64 instance types.
+
+			// DaemonSets require this label so they won't schedule on system nodes.
+			// Since only Karpenter-provisioned nodes have this label, no real DaemonSet
+			// pods exist initially, forcing Karpenter to use PodForDaemonSet.
+			nodePool.Spec.Template.Labels = lo.Assign(nodePool.Spec.Template.Labels, map[string]string{"testing/karpenter-node": "true"})
+			// Prevent disruption from deleting nodes before DaemonSet pods schedule
+			nodePool.Spec.Disruption.ConsolidateAfter = v1.MustParseNillableDuration("30s")
+			ds1 := test.DaemonSet(test.DaemonSetOptions{
+				PodOptions: test.PodOptions{
+					NodeSelector: map[string]string{"testing/karpenter-node": "true"},
+					NodeRequirements: []corev1.NodeSelectorRequirement{{
+						Key:      corev1.LabelArchStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"amd64"},
+					}},
+					HostPorts: []int32{8000},
+				},
+			})
+			ds2 := test.DaemonSet(test.DaemonSetOptions{
+				PodOptions: test.PodOptions{
+					NodeSelector: map[string]string{"testing/karpenter-node": "true"},
+					NodeRequirements: []corev1.NodeSelectorRequirement{{
+						Key:      corev1.LabelArchStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"arm64"},
+					}},
+					HostPorts: []int32{9000},
+				},
+			})
+
+			// Pod requesting port 8000 must go to arm64 (where DaemonSet has port 9000, no conflict)
+			dep1 := test.Deployment(test.DeploymentOptions{
+				Replicas: 1,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "ds-hostport-8000"}},
+					HostPorts:  []int32{8000},
+					NodeRequirements: []corev1.NodeSelectorRequirement{{
+						Key:      corev1.LabelArchStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"arm64"},
+					}},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
+					},
+				},
+			})
+			// Pod requesting port 9000 must go to amd64 (where DaemonSet has port 8000, no conflict)
+			dep2 := test.Deployment(test.DeploymentOptions{
+				Replicas: 1,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "ds-hostport-9000"}},
+					HostPorts:  []int32{9000},
+					NodeRequirements: []corev1.NodeSelectorRequirement{{
+						Key:      corev1.LabelArchStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"amd64"},
+					}},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
+					},
+				},
+			})
+
+			env.ExpectCreated(nodeClass, nodePool, ds1, ds2, dep1, dep2)
+
+			// Wait for both workload pods to be running.
+			Eventually(func(g Gomega) {
+				g.Expect(env.Monitor.RunningPods(labels.SelectorFromSet(map[string]string{"app": "ds-hostport-8000"}))).To(HaveLen(1))
+				g.Expect(env.Monitor.RunningPods(labels.SelectorFromSet(map[string]string{"app": "ds-hostport-9000"}))).To(HaveLen(1))
+			}).Should(Succeed())
+
+			// Verify that both DaemonSet pods are also running.
+			ds1Selector := labels.SelectorFromSet(ds1.Spec.Selector.MatchLabels)
+			ds2Selector := labels.SelectorFromSet(ds2.Spec.Selector.MatchLabels)
+			Eventually(func(g Gomega) {
+				g.Expect(env.Monitor.RunningPods(ds1Selector)).To(HaveLen(1))
+				g.Expect(env.Monitor.RunningPods(ds2Selector)).To(HaveLen(1))
+			}).Should(Succeed())
+
+			// Verify no FailedScheduling events from Karpenter on any test pods.
+			allTestPods := env.Monitor.RunningPods(ds1Selector)
+			allTestPods = append(allTestPods, env.Monitor.RunningPods(ds2Selector)...)
+			allTestPods = append(allTestPods, env.Monitor.RunningPods(labels.SelectorFromSet(map[string]string{"app": "ds-hostport-8000"}))...)
+			allTestPods = append(allTestPods, env.Monitor.RunningPods(labels.SelectorFromSet(map[string]string{"app": "ds-hostport-9000"}))...)
+			testPodNames := lo.SliceToMap(allTestPods, func(p *corev1.Pod) (string, bool) { return p.Name, true })
+			eventList := &corev1.EventList{}
+			Expect(env.Client.List(env, eventList, client.InNamespace("default"))).To(Succeed())
+			var failedPods []string
+			for _, event := range eventList.Items {
+				if event.Reason == "FailedScheduling" && event.Source.Component == "karpenter" {
+					if testPodNames[event.InvolvedObject.Name] {
+						failedPods = append(failedPods, event.InvolvedObject.Name)
+					}
+				}
+			}
+			Expect(failedPods).To(BeEmpty(), "pods had FailedScheduling events from Karpenter: %v", failedPods)
+		})
 	})
 	Describe("CRD Hash", func() {
 		It("should have NodePool hash", func() {
@@ -151,16 +262,33 @@ var _ = Describe("Integration", func() {
 	Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 		It("should provision one pod per node", func() {
 			label := map[string]string{"app": "large-app"}
-			// Calculate dynamic CPU requirement
-			dsOverhead := env.GetDaemonSetOverhead(nodePool)
-			base := lo.ToPtr(resource.MustParse("1800m"))
-			base.Sub(*dsOverhead.Cpu())
-			cpuRequest := base.String()
-
-			deployment := test.Deployment(test.CreateDeploymentOptions("large-app", 100, cpuRequest, "128Mi",
-				test.WithLabels(label),
-				test.WithDoNotDisrupt(),
-				test.WithPodAntiAffinityHostname()))
+			deployment := test.Deployment(test.DeploymentOptions{
+				Replicas: 100,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							v1.DoNotDisruptAnnotationKey: "true",
+						},
+						Labels: label,
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: func() resource.Quantity {
+								dsOverhead := env.GetDaemonSetOverhead(nodePool)
+								base := new(resource.MustParse("1800m"))
+								base.Sub(*dsOverhead.Cpu())
+								return *base
+							}(),
+						},
+					},
+					PodAntiRequirements: []corev1.PodAffinityTerm{{
+						TopologyKey: corev1.LabelHostname,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: label,
+						},
+					}},
+				},
+			})
 
 			env.ExpectCreated(nodeClass, nodePool, deployment)
 			env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*10, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
@@ -175,9 +303,9 @@ var _ = Describe("Integration", func() {
 				}
 				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 			})
-			It("should error when a restricted label is used in labels (kubernetes.io/custom-label)", func() {
+			It("should error when a restricted label is used in labels (karpenter.sh/custom-label)", func() {
 				nodePool.Spec.Template.Labels = map[string]string{
-					"kubernetes.io/custom-label": "custom-value",
+					"karpenter.sh/custom-label": "custom-value",
 				}
 				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 			})
@@ -195,47 +323,58 @@ var _ = Describe("Integration", func() {
 			})
 			It("should error when a requirement references a restricted label (karpenter.sh/nodepool)", func() {
 				nodePool = test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      v1.NodePoolLabelKey,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"default"},
-					}})
+					Key:      v1.NodePoolLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"default"},
+				})
 				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 			})
 			It("should error when a requirement uses In but has no values", func() {
 				nodePool = test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{},
-					}})
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{},
+				})
 				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 			})
 			It("should error when a requirement uses an unknown operator", func() {
 				nodePool = test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      v1.CapacityTypeLabelKey,
-						Operator: "within",
-						Values:   []string{v1.CapacityTypeSpot},
-					}})
+					Key:      v1.CapacityTypeLabelKey,
+					Operator: "within",
+					Values:   []string{v1.CapacityTypeSpot},
+				})
 				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 			})
 			It("should error when Gt is used with multiple integer values", func() {
 				nodePool = test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpGt,
-						Values:   []string{"1000000", "2000000"},
-					}})
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpGt,
+					Values:   []string{"1000000", "2000000"},
+				})
 				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 			})
 			It("should error when Lt is used with multiple integer values", func() {
 				nodePool = test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpLt,
-						Values:   []string{"1000000", "2000000"},
-					}})
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpLt,
+					Values:   []string{"1000000", "2000000"},
+				})
+				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
+			})
+			It("should error when Gte is used with multiple integer values", func() {
+				nodePool = test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirementWithMinValues{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpGte,
+					Values:   []string{"1000000", "2000000"},
+				})
+				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
+			})
+			It("should error when Lte is used with multiple integer values", func() {
+				nodePool = test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirementWithMinValues{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpLte,
+					Values:   []string{"1000000", "2000000"},
+				})
 				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 			})
 			It("should error when consolidateAfter is negative", func() {
@@ -250,45 +389,37 @@ var _ = Describe("Integration", func() {
 			})
 			It("should error when minValues for a requirement key is negative", func() {
 				nodePool = test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"insance-type-1", "insance-type-2"},
-					},
-					MinValues: lo.ToPtr(-1)},
+					Key:       corev1.LabelInstanceTypeStable,
+					Operator:  corev1.NodeSelectorOpIn,
+					Values:    []string{"insance-type-1", "insance-type-2"},
+					MinValues: new(-1)},
 				)
 				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 			})
 			It("should error when minValues for a requirement key is zero", func() {
 				nodePool = test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"insance-type-1", "insance-type-2"},
-					},
-					MinValues: lo.ToPtr(0)},
+					Key:       corev1.LabelInstanceTypeStable,
+					Operator:  corev1.NodeSelectorOpIn,
+					Values:    []string{"insance-type-1", "insance-type-2"},
+					MinValues: new(0)},
 				)
 				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 			})
 			It("should error when minValues for a requirement key is more than 50", func() {
 				nodePool = test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"insance-type-1", "insance-type-2"},
-					},
-					MinValues: lo.ToPtr(51)},
+					Key:       corev1.LabelInstanceTypeStable,
+					Operator:  corev1.NodeSelectorOpIn,
+					Values:    []string{"insance-type-1", "insance-type-2"},
+					MinValues: new(51)},
 				)
 				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 			})
 			It("should error when minValues for a requirement key is greater than the values specified within In operator", func() {
 				nodePool = test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"insance-type-1", "insance-type-2"},
-					},
-					MinValues: lo.ToPtr(3)},
+					Key:       corev1.LabelInstanceTypeStable,
+					Operator:  corev1.NodeSelectorOpIn,
+					Values:    []string{"insance-type-1", "insance-type-2"},
+					MinValues: new(3)},
 				)
 				Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 			})
@@ -307,11 +438,20 @@ var _ = Describe("Integration", func() {
 				}
 				numPods = 1
 				// Add pods with a do-not-disrupt annotation so that we can check node metadata before we disrupt
-				dep = test.Deployment(test.CreateDeploymentOptions("my-app", int32(numPods), "100m", "128Mi",
-					test.WithNoResourceRequests(),
-					test.WithLabels(map[string]string{"app": "my-app"}),
-					test.WithDoNotDisrupt(),
-					test.WithTerminationGracePeriod(0)))
+				dep = test.Deployment(test.DeploymentOptions{
+					Replicas: int32(numPods),
+					PodOptions: test.PodOptions{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"app": "my-app",
+							},
+							Annotations: map[string]string{
+								v1.DoNotDisruptAnnotationKey: "true",
+							},
+						},
+						TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
+					},
+				})
 				selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 			})
 			DescribeTable("Conditions", func(unhealthyCondition corev1.NodeCondition) {
@@ -382,6 +522,107 @@ var _ = Describe("Integration", func() {
 
 				env.EventuallyExpectNotFound(pod, node)
 				env.EventuallyExpectHealthyPodCount(selector, numPods)
+			})
+		})
+	})
+	Describe("DoNotDisrupt", func() {
+		Context("Grace Period", func() {
+			It("should drain pods according to their grace period durations and block indefinitely for 'true'", func() {
+				const shortGrace = time.Minute
+				const longGrace = 2 * time.Minute
+				// Pod with a 1-minute grace period
+				shortPod := test.Pod(test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "short-grace"},
+						Annotations: map[string]string{
+							v1.DoNotDisruptAnnotationKey: "1m",
+						},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("10m"),
+						},
+					},
+					TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
+				})
+				// Pod with a 2-minute grace period
+				longPod := test.Pod(test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "long-grace"},
+						Annotations: map[string]string{
+							v1.DoNotDisruptAnnotationKey: "2m",
+						},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("10m"),
+						},
+					},
+					TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
+				})
+				// Pod with indefinite protection
+				indefinitePod := test.Pod(test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "indefinite-grace"},
+						Annotations: map[string]string{
+							v1.DoNotDisruptAnnotationKey: "true",
+						},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("10m"),
+						},
+					},
+					TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
+				})
+
+				env.ExpectCreated(nodeClass, nodePool, shortPod, longPod, indefinitePod)
+
+				// All three pods should schedule to the same node
+				nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+				env.EventuallyExpectCreatedNodeCount("==", 1)
+				env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(shortPod.Labels), 1)
+				env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(longPod.Labels), 1)
+				env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(indefinitePod.Labels), 1)
+
+				// Re-fetch pods to get their actual StartTime from the API server.
+				// The do-not-disrupt grace period is measured from pod start time, so we
+				// derive all consistency check windows from the real start times.
+				for _, p := range []*corev1.Pod{shortPod, longPod, indefinitePod} {
+					Expect(env.Client.Get(env, client.ObjectKeyFromObject(p), p)).To(Succeed())
+					Expect(p.Status.StartTime).ToNot(BeNil())
+				}
+				shortExpiry := shortPod.Status.StartTime.Add(shortGrace)
+				longExpiry := longPod.Status.StartTime.Add(longGrace)
+
+				// Delete the nodeclaim to trigger draining
+				env.ExpectDeleted(nodeClaim)
+
+				// All three pods should remain active until the short grace period expires.
+				shortWindow := time.Until(shortExpiry) - 5*time.Second
+				Expect(shortWindow).To(BeNumerically(">", 0), "short grace period already expired before consistency check")
+				env.ConsistentlyExpectActivePods(shortWindow, shortPod, longPod, indefinitePod)
+
+				// After the short grace period elapses, the short pod should be drained
+				env.EventuallyExpectNotFound(shortPod)
+
+				// The long and indefinite pods should remain active until the long grace period expires.
+				longWindow := time.Until(longExpiry) - 5*time.Second
+				Expect(longWindow).To(BeNumerically(">", 0), "long grace period already expired before consistency check")
+				env.ConsistentlyExpectActivePods(longWindow, longPod, indefinitePod)
+
+				// After the long grace period elapses, the long pod should be drained
+				env.EventuallyExpectNotFound(longPod)
+
+				// The indefinite pod should still be alive indefinitely
+				env.ConsistentlyExpectActivePods(30*time.Second, indefinitePod)
+
+				// The indefinite pod should still be alive — remove the annotation to unblock draining
+				delete(indefinitePod.Annotations, v1.DoNotDisruptAnnotationKey)
+				env.ExpectUpdated(indefinitePod)
+
+				// Now the indefinite pod should be drained
+				env.EventuallyExpectNotFound(indefinitePod)
 			})
 		})
 	})

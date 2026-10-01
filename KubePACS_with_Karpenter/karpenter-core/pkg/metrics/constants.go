@@ -28,7 +28,9 @@ const (
 
 	NodePoolLabel         = "nodepool"
 	ReasonLabel           = "reason"
+	ResourceTypeLabel     = "resource_type"
 	CapacityTypeLabel     = "capacity_type"
+	ZoneLabel             = "zone"
 	MinValuesRelaxedLabel = "min_values_relaxed"
 
 	// Reasons for CREATE/DELETE shared metrics

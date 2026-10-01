@@ -3,12 +3,27 @@
 This directory contains the modified Karpenter core, AWS provider, Python
 optimizer, and Helm chart. Commands start at the repository root.
 
+The fork tracks upstream Karpenter v1.14.0 (`kubernetes-sigs/karpenter` and
+`aws/karpenter-provider-aws`). KubePACS changes are limited to the provisioning
+scheduler hook (`scheduler.go`, `scheduler_python.go`, `kubepacs_cli.py`), the
+unavailable-offerings cache TTL, the image, and the Helm chart.
+
+Several NodePools in one cluster can opt in to KubePACS. Pending pods are grouped
+by the KubePACS NodePool that can host them (strategy annotation, taints, and
+requirements), and the solver runs once per NodePool using only that NodePool's
+offerings. NodePools without the annotation keep the upstream scheduler.
+
+Offerings that fail to launch stay excluded for 12h by default (upstream: 3m).
+This applies to every NodePool in the cluster. Set
+`KUBEPACS_UNAVAILABLE_OFFERINGS_TTL` (Helm: `settings.kubepacs.unavailableOfferingsTTL`)
+to a Go duration such as `3m` to restore the upstream behavior.
+
 ## Scope And Prerequisites
 
 Figure generation does not need this deployment. This workflow tests live
 provisioning integration and creates billable AWS resources. Use a dedicated
 test cluster/account, Docker, AWS CLI, kubectl, and Helm 3. The controller image
-targets Linux AMD64.
+is built for Linux AMD64 and ARM64.
 
 An existing EKS cluster needs controller and node IAM roles, tagged discovery
 subnets/security groups, and an interruption queue when enabled. Alternatively,
@@ -19,7 +34,7 @@ The controller's `kubepacs_cli.py` accepts a local JSON or gzip JSON snapshot
 through `KUBEPACS_SPOT_DATA_PATH` (or `--spot-data-path` for direct CLI use).
 Package or mount the input at an absolute path in the controller container;
 the solver runs from `/tmp`. The API's `data/latest_aws.json` can be reused.
-Build an image containing this CLI revision; the published 1.8.1-kubepacs
+Build an image containing this CLI revision; a published `*-kubepacs`
 image does not automatically gain changes made in the checkout.
 
 Without a local path the CLI uses the live CloudFront endpoint with a
@@ -33,15 +48,17 @@ failure can fall back to ordinary Karpenter.
 Build locally without publishing or deploying:
 
 ```sh
-docker build --platform linux/amd64 -t kubepacs-controller:artifact \
+docker buildx build --platform linux/amd64,linux/arm64 -t kubepacs-controller:artifact \
   -f KubePACS_with_Karpenter/karpenter-provider-aws/Dockerfile \
   KubePACS_with_Karpenter
 helm lint KubePACS_with_Karpenter/karpenter-provider-aws/charts/karpenter
 ```
 
 The build context must include both fork directories because the provider
-uses the sibling core module. The Dockerfile installs unpinned Python
-dependencies; record the image digest and resolved dependencies for evaluation.
+uses the sibling core module. Python dependencies are pinned in
+`karpenter-provider-aws/kubepacs-requirements.txt`; record the image digest for evaluation.
+The `Build KubePACS Controller Image` workflow builds both platforms and smoke-tests
+the bundled CBC solver on each; run it manually with a tag to push the image to GHCR.
 A successful Helm lint is not a container build or deployment test.
 
 `karpenter-provider-aws/build_and_push.sh` builds and pushes images, including

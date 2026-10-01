@@ -44,6 +44,7 @@ import (
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
+	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 	disruptionutils "sigs.k8s.io/karpenter/pkg/utils/disruption"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
@@ -61,23 +62,29 @@ type Controller struct {
 	cloudProvider cloudprovider.CloudProvider
 	cluster       *state.Cluster
 	clock         clock.Clock
+	recorder      events.Recorder
 }
 
-func NewController(kubeClient client.Client, cluster *state.Cluster, cloudProvider cloudprovider.CloudProvider, clock clock.Clock) *Controller {
+func NewController(kubeClient client.Client, cluster *state.Cluster, cloudProvider cloudprovider.CloudProvider, clock clock.Clock, recorder events.Recorder) *Controller {
 	return &Controller{
 		kubeClient:    kubeClient,
 		cloudProvider: cloudProvider,
 		cluster:       cluster,
 		clock:         clock,
+		recorder:      recorder,
 	}
 }
 
 // Reconcile the resource
 // Requeue after computing Static NodePool to ensure we don't miss any events
-func (c *Controller) Reconcile(ctx context.Context, np *v1.NodePool) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "static.deprovisioning")
+func (c *Controller) Name() string {
+	return "static.deprovisioning"
+}
 
-	if !nodepoolutils.IsManaged(np, c.cloudProvider) || np.Spec.Replicas == nil {
+func (c *Controller) Reconcile(ctx context.Context, np *v1.NodePool) (reconcile.Result, error) {
+	ctx = injection.WithControllerName(ctx, c.Name())
+
+	if !nodepoolutils.IsManaged(np, c.cloudProvider) || np.Spec.Replicas == nil || !np.DeletionTimestamp.IsZero() {
 		return reconcile.Result{}, nil
 	}
 
@@ -129,7 +136,7 @@ func (c *Controller) Reconcile(ctx context.Context, np *v1.NodePool) (reconcile.
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("static.deprovisioning").
+		Named(c.Name()).
 		// Reoncile on NodePool Create and Update (when replicas change)
 		For(&v1.NodePool{}, builder.WithPredicates(nodepoolutils.IsManagedPredicateFuncs(c.cloudProvider), nodepoolutils.IsStaticPredicateFuncs(),
 			predicate.Funcs{
@@ -246,7 +253,7 @@ func (c *Controller) resolvedDeprovisioningCandidates(ctx context.Context, nodes
 			log.FromContext(ctx).WithValues("node", node.Name()).Error(err, "unable to list pods, treating as non-empty")
 			return false
 		}
-		return len(pods) == 0 || lo.EveryBy(pods, pod.IsOwnedByDaemonSet) && lo.NoneBy(pods, pod.HasDoNotDisrupt)
+		return len(pods) == 0 || lo.EveryBy(pods, pod.IsOwnedByDaemonSet) && lo.NoneBy(pods, func(p *corev1.Pod) bool { return pod.IsDoNotDisruptActive(p, c.clock, c.recorder) })
 	})
 
 	for _, node := range lo.Slice(emptyNodes, 0, count) {
@@ -281,7 +288,7 @@ func (c *Controller) resolvedDeprovisioningCandidates(ctx context.Context, nodes
 		return NonEmptyNode{
 			node:            node,
 			pods:            pods,
-			hasDoNotDisrupt: lo.SomeBy(pods, pod.HasDoNotDisrupt),
+			hasDoNotDisrupt: lo.SomeBy(pods, func(p *corev1.Pod) bool { return pod.IsDoNotDisruptActive(p, c.clock, c.recorder) }),
 		}, true
 	})
 

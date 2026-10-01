@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/awslabs/operatorpkg/serrors"
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"golang.org/x/time/rate"
@@ -120,9 +121,13 @@ func NewQueue(kubeClient client.Client, recorder events.Recorder, cluster *state
 	return queue
 }
 
+func (q *Queue) Name() string {
+	return "disruption.queue"
+}
+
 func (q *Queue) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("disruption.queue").
+		Named(q.Name()).
 		WatchesRawSource(source.Channel(q.source, &handler.TypedEnqueueRequestForObject[*v1.NodeClaim]{})).
 		WithOptions(controller.Options{
 			RateLimiter: workqueue.NewTypedMaxOfRateLimiter[reconcile.Request](
@@ -135,7 +140,7 @@ func (q *Queue) Register(ctx context.Context, m manager.Manager) error {
 }
 
 func (q *Queue) Reconcile(ctx context.Context, nodeClaim *v1.NodeClaim) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "disruption.queue")
+	ctx = injection.WithControllerName(ctx, q.Name())
 	q.RLock()
 	cmd, exists := q.ProviderIDToCommand[nodeClaim.Status.ProviderID]
 	q.RUnlock()
@@ -160,11 +165,11 @@ func (q *Queue) Reconcile(ctx context.Context, nodeClaim *v1.NodeClaim) (reconci
 		DisruptionQueueFailuresTotal.Add(float64(len(failedLaunches)), map[string]string{
 			decisionLabel:          string(cmd.Decision()),
 			metrics.ReasonLabel:    pretty.ToSnakeCase(string(cmd.Reason())),
-			ConsolidationTypeLabel: cmd.ConsolidationType(),
+			ConsolidationTypeLabel: string(cmd.Decision()),
 		})
 		stateNodes := lo.Map(cmd.Candidates, func(c *Candidate, _ int) *state.StateNode { return c.StateNode })
 		multiErr := multierr.Combine(err, state.RequireNoScheduleTaint(ctx, q.kubeClient, false, stateNodes...))
-		multiErr = multierr.Combine(multiErr, state.ClearNodeClaimsCondition(ctx, q.kubeClient, v1.ConditionTypeDisruptionReason, stateNodes...))
+		multiErr = multierr.Combine(multiErr, state.ClearNodeClaimsCondition(ctx, q.kubeClient, q.clock, v1.ConditionTypeDisruptionReason, stateNodes...))
 		// Log the error
 		log.FromContext(ctx).Error(multiErr, "failed terminating nodes while executing a disruption command")
 	} else {
@@ -261,7 +266,7 @@ func (q *Queue) markDisrupted(ctx context.Context, cmd *Command) ([]*Candidate, 
 				return e
 			}
 			stored := nodeClaim.DeepCopy()
-			nodeClaim.StatusConditions().SetTrueWithReason(v1.ConditionTypeDisruptionReason, string(cmd.Reason()), string(cmd.Reason()))
+			nodeClaim.StatusConditions(status.WithClock(q.clock)).SetTrueWithReason(v1.ConditionTypeDisruptionReason, string(cmd.Reason()), string(cmd.Reason()))
 			return q.kubeClient.Status().Patch(ctx, nodeClaim, client.MergeFrom(stored))
 		}); err != nil {
 			errs[i] = client.IgnoreNotFound(err)
@@ -312,7 +317,9 @@ func (q *Queue) StartCommand(ctx context.Context, cmd *Command) error {
 		return fmt.Errorf("candidate is being disrupted")
 	}
 
-	log.FromContext(ctx).WithValues(append([]any{"command-id", cmd.ID, "reason", strings.ToLower(string(cmd.Reason()))}, cmd.LogValues()...)...).Info("disrupting node(s)")
+	log.FromContext(ctx).WithValues(append([]any{
+		"command", cmd.String(),
+	}, cmd.LogValues()...)...).Info("disrupting node(s)")
 
 	// Cordon the old nodes before we launch the replacements to prevent new pods from scheduling to the old nodes
 	markedCandidates, markDisruptedErr := q.markDisrupted(ctx, cmd)
@@ -360,6 +367,17 @@ func (q *Queue) StartCommand(ctx context.Context, cmd *Command) error {
 	q.Unlock()
 
 	// An action is only performed and pods/nodes are only disrupted after a successful add to the queue
+	nodePools := lo.Uniq(lo.Map(cmd.Candidates, func(c *Candidate, _ int) string {
+		return c.NodePool.Name
+	}))
+	for _, nodePool := range nodePools {
+		NodepoolDecisionsPerformed.Inc(map[string]string{
+			metrics.NodePoolLabel:  nodePool,
+			decisionLabel:          string(cmd.Decision()),
+			metrics.ReasonLabel:    strings.ToLower(string(cmd.Reason())),
+			ConsolidationTypeLabel: cmd.ConsolidationType(),
+		})
+	}
 	DecisionsPerformedTotal.Inc(map[string]string{
 		decisionLabel:          string(cmd.Decision()),
 		metrics.ReasonLabel:    strings.ToLower(string(cmd.Reason())),

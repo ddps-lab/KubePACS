@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/fake"
 	"sigs.k8s.io/karpenter/pkg/controllers/nodeclaim/lifecycle"
+	"sigs.k8s.io/karpenter/pkg/metrics"
 	"sigs.k8s.io/karpenter/pkg/test"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
@@ -110,8 +111,8 @@ var _ = Describe("Termination", func() {
 
 				ExpectObjectReconciled(ctx, env.Client, nodeClaimController, nodeClaim) // this will call cloudProvider Get to check if the instance is still around
 
-				ExpectMetricHistogramSampleCountValue("karpenter_nodeclaims_instance_termination_duration_seconds", 1, map[string]string{"nodepool": nodePool.Name})
-				ExpectMetricHistogramSampleCountValue("karpenter_nodeclaims_termination_duration_seconds", 1, map[string]string{"nodepool": nodePool.Name})
+				ExpectMetricHistogramSampleCountValue("karpenter_nodeclaims_instance_termination_duration_seconds", 1, map[string]string{metrics.NodePoolLabel: nodePool.Name})
+				ExpectMetricHistogramSampleCountValue("karpenter_nodeclaims_termination_duration_seconds", 1, map[string]string{metrics.NodePoolLabel: nodePool.Name})
 				ExpectNotFound(ctx, env.Client, nodeClaim, node)
 
 				// Expect the nodeClaim to be gone from the cloudprovider
@@ -138,7 +139,7 @@ var _ = Describe("Termination", func() {
 		Expect(nodeClaim.StatusConditions().Get(v1.ConditionTypeRegistered).IsTrue()).To(BeTrue())
 
 		// Initialize the NodeClaim
-		ExpectMakeNodesReady(ctx, env.Client, node) // Remove the not-ready taint
+		ExpectMakeNodesReady(ctx, env.Client, env.Clock, node) // Remove the not-ready taint
 		ExpectObjectReconciled(ctx, env.Client, nodeClaimController, nodeClaim)
 		node = ExpectExists(ctx, env.Client, node)
 		node.Status.Capacity = corev1.ResourceList{
@@ -258,8 +259,8 @@ var _ = Describe("Termination", func() {
 		Expect(result.RequeueAfter).To(BeEquivalentTo(5 * time.Second))
 		ExpectObjectReconciled(ctx, env.Client, nodeClaimController, nodeClaim) // this will call cloudProvider Get to check if the instance is still around
 
-		ExpectMetricHistogramSampleCountValue("karpenter_nodeclaims_instance_termination_duration_seconds", 1, map[string]string{"nodepool": nodePool.Name})
-		ExpectMetricHistogramSampleCountValue("karpenter_nodeclaims_termination_duration_seconds", 1, map[string]string{"nodepool": nodePool.Name})
+		ExpectMetricHistogramSampleCountValue("karpenter_nodeclaims_instance_termination_duration_seconds", 1, map[string]string{metrics.NodePoolLabel: nodePool.Name})
+		ExpectMetricHistogramSampleCountValue("karpenter_nodeclaims_termination_duration_seconds", 1, map[string]string{metrics.NodePoolLabel: nodePool.Name})
 		ExpectNotFound(ctx, env.Client, nodeClaim, node1, node2, node3)
 
 		// Expect the nodeClaim to be gone from the cloudprovider
@@ -307,7 +308,7 @@ var _ = Describe("Termination", func() {
 	It("should not delete nodes without provider ids if the NodeClaim hasn't been launched yet", func() {
 		// Generate 10 nodes, none of which have a provider id
 		var nodes []*corev1.Node
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			nodes = append(nodes, test.Node())
 		}
 		ExpectApplied(ctx, env.Client, lo.Map(nodes, func(n *corev1.Node, _ int) client.Object { return n })...)
@@ -318,8 +319,8 @@ var _ = Describe("Termination", func() {
 		Expect(env.Client.Delete(ctx, nodeClaim)).To(Succeed())
 		ExpectObjectReconciled(ctx, env.Client, nodeClaimController, nodeClaim)
 
-		ExpectMetricHistogramSampleCountValue("karpenter_nodeclaims_instance_termination_duration_seconds", 1, map[string]string{"nodepool": nodePool.Name})
-		ExpectMetricHistogramSampleCountValue("karpenter_nodeclaims_termination_duration_seconds", 1, map[string]string{"nodepool": nodePool.Name})
+		ExpectMetricHistogramSampleCountValue("karpenter_nodeclaims_instance_termination_duration_seconds", 1, map[string]string{metrics.NodePoolLabel: nodePool.Name})
+		ExpectMetricHistogramSampleCountValue("karpenter_nodeclaims_termination_duration_seconds", 1, map[string]string{metrics.NodePoolLabel: nodePool.Name})
 		ExpectNotFound(ctx, env.Client, nodeClaim)
 		for _, node := range nodes {
 			ExpectExists(ctx, env.Client, node)

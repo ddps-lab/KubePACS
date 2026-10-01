@@ -35,29 +35,27 @@ import (
 var _ = Describe("StaticCapacity", func() {
 	Context("Provisioning", func() {
 		BeforeEach(func() {
-			nodePool.Spec.Replicas = lo.ToPtr(int64(1))
+			nodePool.Spec.Replicas = new(int64(1))
 			if env.IsDefaultNodeClassKWOK() {
 				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values: []string{
-							"c-16x-amd64-linux",
-							"c-16x-arm64-linux",
-						},
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						"c-16x-amd64-linux",
+						"c-16x-arm64-linux",
 					},
 				})
 			}
 		})
 
 		It("should create static NodeClaims to meet desired replicas", func() {
-			nodePool.Spec.Replicas = lo.ToPtr(int64(10))
+			nodePool.Spec.Replicas = new(int64(10))
 			env.ExpectCreated(nodeClass, nodePool)
 			env.EventuallyExpectInitializedNodeCount("==", 10)
 			nodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 10)
 			env.EventuallyExpectNodeClaimsReady(nodeClaims...)
 
-			nodePool.Spec.Replicas = lo.ToPtr(int64(15))
+			nodePool.Spec.Replicas = new(int64(15))
 			env.ExpectUpdated(nodePool)
 			nodes := env.EventuallyExpectInitializedNodeCount("==", 15)
 			nodeClaims = env.EventuallyExpectCreatedNodeClaimCount("==", 15)
@@ -111,7 +109,7 @@ var _ = Describe("StaticCapacity", func() {
 		})
 
 		It("should respect node limits when provisioning", func() {
-			nodePool.Spec.Replicas = lo.ToPtr(int64(10))
+			nodePool.Spec.Replicas = new(int64(10))
 			nodePool.Spec.Limits = v1.Limits{
 				corev1.ResourceName("nodes"): resource.MustParse("5"),
 			}
@@ -126,16 +124,14 @@ var _ = Describe("StaticCapacity", func() {
 	})
 	Context("Deprovisioning", func() {
 		BeforeEach(func() {
-			nodePool.Spec.Replicas = lo.ToPtr(int64(3))
+			nodePool.Spec.Replicas = new(int64(3))
 			if env.IsDefaultNodeClassKWOK() {
 				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values: []string{
-							"c-16x-amd64-linux",
-							"c-16x-arm64-linux",
-						},
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						"c-16x-amd64-linux",
+						"c-16x-arm64-linux",
 					},
 				})
 			}
@@ -149,7 +145,7 @@ var _ = Describe("StaticCapacity", func() {
 			env.EventuallyExpectNodeClaimsReady(nodeClaims...)
 
 			// Scale down to 0
-			nodePool.Spec.Replicas = lo.ToPtr(int64(0))
+			nodePool.Spec.Replicas = new(int64(0))
 			env.ExpectUpdated(nodePool)
 
 			// Create no more
@@ -159,7 +155,7 @@ var _ = Describe("StaticCapacity", func() {
 		})
 
 		It("should terminate empty nodes first, then nodes with least cost, then respect do-not-disrupt", func() {
-			nodePool.Spec.Replicas = lo.ToPtr(int64(5))
+			nodePool.Spec.Replicas = new(int64(5))
 			env.ExpectUpdated(nodeClass, nodePool)
 			nodes := env.EventuallyExpectInitializedNodeCount("==", 5)
 			nodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 5)
@@ -182,7 +178,7 @@ var _ = Describe("StaticCapacity", func() {
 			doNotDisruptPod.Spec.NodeName = nodes[2].Name
 			env.ExpectCreated(doNotDisruptPod)
 
-			nodePool.Spec.Replicas = lo.ToPtr(int64(3))
+			nodePool.Spec.Replicas = new(int64(3))
 			env.ExpectUpdated(nodePool)
 
 			remainingNodes := env.EventuallyExpectInitializedNodeCount("==", 3)
@@ -194,7 +190,7 @@ var _ = Describe("StaticCapacity", func() {
 			Expect(nodeNames).To(ContainElement(nodes[1].Name)) // node with regular pod
 			Expect(nodeNames).To(ContainElement(nodes[2].Name)) // node with do-not-disrupt pod
 
-			nodePool.Spec.Replicas = lo.ToPtr(int64(1))
+			nodePool.Spec.Replicas = new(int64(1))
 			env.ExpectUpdated(nodePool)
 
 			finalNodes := env.EventuallyExpectInitializedNodeCount("==", 1)
@@ -217,7 +213,7 @@ var _ = Describe("StaticCapacity", func() {
 					Namespace: "default",
 				},
 				Spec: appsv1.DeploymentSpec{
-					Replicas: lo.ToPtr(int32(2)),
+					Replicas: new(int32(2)),
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{"app": "test"},
 					},
@@ -240,7 +236,7 @@ var _ = Describe("StaticCapacity", func() {
 			env.EventuallyExpectHealthyPodCount(selector, 2)
 
 			// Scale down to 1
-			nodePool.Spec.Replicas = lo.ToPtr(int64(1))
+			nodePool.Spec.Replicas = new(int64(1))
 			env.ExpectUpdated(nodePool)
 
 			// Should eventually scale down to 1 node
@@ -254,16 +250,14 @@ var _ = Describe("StaticCapacity", func() {
 
 	Context("Drift", func() {
 		BeforeEach(func() {
-			nodePool.Spec.Replicas = lo.ToPtr(int64(10))
+			nodePool.Spec.Replicas = new(int64(10))
 			if env.IsDefaultNodeClassKWOK() {
 				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values: []string{
-							"c-16x-amd64-linux",
-							"c-16x-arm64-linux",
-						},
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						"c-16x-amd64-linux",
+						"c-16x-arm64-linux",
 					},
 				})
 			}
@@ -338,40 +332,31 @@ var _ = Describe("StaticCapacity", func() {
 		var dynamicNodePool *v1.NodePool
 		var label map[string]string
 		BeforeEach(func() {
-			// Create a static NodePool
-			nodePool.Spec.Replicas = lo.ToPtr(int64(2))
 			if env.IsDefaultNodeClassKWOK() {
 				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values: []string{
-							"c-16x-amd64-linux",
-							"c-16x-arm64-linux",
-						},
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						"c-16x-amd64-linux",
+						"c-16x-arm64-linux",
 					},
 				})
 			}
+
+			// Copy nodePool before applying static-specific modifications
+			dynamicNodePool = test.NodePool(
+				lo.FromPtr(nodePool),
+				v1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "dynamic-nodepool"}},
+			)
+
+			// Apply static-specific modifications
+			nodePool.Spec.Replicas = new(int64(2))
 			nodePool.Spec.Template.Spec.Taints = []corev1.Taint{
 				{
 					Key:    "static",
 					Effect: corev1.TaintEffectNoExecute,
 				},
 			}
-			// Create a dynamic NodePool
-			dynamicNodePool = test.NodePool(v1.NodePool{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "dynamic-nodepool",
-				},
-				Spec: v1.NodePoolSpec{
-					Template: v1.NodeClaimTemplate{
-						Spec: v1.NodeClaimTemplateSpec{
-							Requirements: nodePool.Spec.Template.Spec.Requirements,
-							NodeClassRef: nodePool.Spec.Template.Spec.NodeClassRef,
-						},
-					},
-				},
-			})
 			label = map[string]string{"app": "large-app"}
 		})
 
@@ -439,13 +424,11 @@ var _ = Describe("StaticCapacity", func() {
 		BeforeEach(func() {
 			if env.IsDefaultNodeClassKWOK() {
 				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values: []string{
-							"c-16x-amd64-linux",
-							"c-16x-arm64-linux",
-						},
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						"c-16x-amd64-linux",
+						"c-16x-arm64-linux",
 					},
 				})
 			}
@@ -453,7 +436,7 @@ var _ = Describe("StaticCapacity", func() {
 
 		It("should not go over limit during concurrent changes/executions", func() {
 			// Start with 3 replicas and set a limit of 5 nodes
-			nodePool.Spec.Replicas = lo.ToPtr(int64(3))
+			nodePool.Spec.Replicas = new(int64(3))
 			nodePool.Spec.Limits = v1.Limits{
 				corev1.ResourceName("nodes"): resource.MustParse("5"),
 			}
@@ -469,7 +452,7 @@ var _ = Describe("StaticCapacity", func() {
 
 			// Simultaneously scale up to 4 replicas while drift is happening
 			// This should test that we don't exceed the limit of 5 during replacement
-			nodePool.Spec.Replicas = lo.ToPtr(int64(4))
+			nodePool.Spec.Replicas = new(int64(4))
 			env.ExpectUpdated(nodePool)
 
 			// Verify drift is detected on existing nodes
@@ -485,14 +468,16 @@ var _ = Describe("StaticCapacity", func() {
 			env.EventuallyExpectNodeClaimsReady(finalNodeClaims...)
 
 			// All final nodes should have the new annotation (either newly created or replaced due to drift)
-			nodes := env.EventuallyExpectInitializedNodeCount("==", 4)
-			for _, node := range nodes {
-				Expect(node.Annotations).To(HaveKeyWithValue("drift-trigger", "test-value"))
-			}
+			Eventually(func(g Gomega) {
+				nodes := env.EventuallyExpectInitializedNodeCount("==", 4)
+				for _, node := range nodes {
+					g.Expect(node.Annotations).To(HaveKeyWithValue("drift-trigger", "test-value"))
+				}
+			}).WithTimeout(10 * time.Minute).Should(Succeed())
 		})
 
 		It("should handle NodePool deletion gracefully", func() {
-			nodePool.Spec.Replicas = lo.ToPtr(int64(3))
+			nodePool.Spec.Replicas = new(int64(3))
 			env.ExpectCreated(nodeClass, nodePool)
 
 			env.EventuallyExpectInitializedNodeCount("==", 3)
@@ -501,6 +486,9 @@ var _ = Describe("StaticCapacity", func() {
 
 			// Delete the NodePool
 			env.ExpectDeleted(nodePool)
+
+			// During deletion, no new NodeClaims should be created - count should only decrease
+			env.ConsistentlyExpectNodeClaimCountNotExceed(30*time.Second, 3)
 
 			// All nodes should eventually be cleaned up
 			env.EventuallyExpectInitializedNodeCount("==", 0)

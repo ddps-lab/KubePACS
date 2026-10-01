@@ -127,7 +127,7 @@ func getDescribeInstanceTypeOfferingsOutput() string {
 		"m5.2xlarge":     {"test-zone-1a"},
 		"m5.4xlarge":     {"test-zone-1a"},
 		"m5.8xlarge":     {"test-zone-1a"},
-		"p3.8xlarge":     {"test-zone-1a", "test-zone-1b"},
+		"g5.12xlarge":    {"test-zone-1a", "test-zone-1b"},
 		"dl1.24xlarge":   {"test-zone-1a", "test-zone-1b"},
 		"g4dn.8xlarge":   {"test-zone-1a", "test-zone-1b"},
 		"g4ad.16xlarge":  {"test-zone-1a", "test-zone-1b"},
@@ -201,7 +201,7 @@ func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 		fmt.Fprintf(src, "NeuronInfo: &ec2types.NeuronInfo{\n")
 		fmt.Fprintf(src, "NeuronDevices: []ec2types.NeuronDeviceInfo{\n")
 		for _, elem := range info.NeuronInfo.NeuronDevices {
-			fmt.Fprintf(src, getNeuronDeviceInfo(elem))
+			fmt.Fprint(src, getNeuronDeviceInfo(elem))
 		}
 		fmt.Fprintf(src, "},\n")
 		fmt.Fprintf(src, "},\n")
@@ -210,7 +210,7 @@ func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 		fmt.Fprintf(src, "GpuInfo: &ec2types.GpuInfo{\n")
 		fmt.Fprintf(src, "Gpus: []ec2types.GpuDeviceInfo{\n")
 		for _, elem := range info.GpuInfo.Gpus {
-			fmt.Fprintf(src, getGPUDeviceInfo(elem))
+			fmt.Fprint(src, getGPUDeviceInfo(elem))
 		}
 		fmt.Fprintf(src, "},\n")
 		fmt.Fprintf(src, "},\n")
@@ -233,10 +233,15 @@ func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 	fmt.Fprintf(src, "DefaultNetworkCardIndex: aws.Int32(%d),\n", lo.FromPtr(info.NetworkInfo.DefaultNetworkCardIndex))
 	fmt.Fprintf(src, "NetworkCards: []ec2types.NetworkCardInfo{\n")
 	for _, networkCard := range info.NetworkInfo.NetworkCards {
-		fmt.Fprintf(src, getNetworkCardInfo(networkCard))
+		fmt.Fprint(src, getNetworkCardInfo(networkCard))
 	}
 	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "},\n")
+	if info.PlacementGroupInfo != nil {
+		fmt.Fprintf(src, "PlacementGroupInfo: &ec2types.PlacementGroupInfo{\n")
+		fmt.Fprintf(src, "SupportedStrategies: []ec2types.PlacementGroupStrategy{%s},\n", getStringSliceData(info.PlacementGroupInfo.SupportedStrategies))
+		fmt.Fprintf(src, "},\n")
+	}
 	return src.String()
 }
 
@@ -279,6 +284,6 @@ func getGPUDeviceInfo(info ec2types.GpuDeviceInfo) string {
 	return src.String()
 }
 
-func getStringSliceData[T ec2types.UsageClassType | ec2types.VirtualizationType | ec2types.ArchitectureType](slice []T) string {
+func getStringSliceData[T ec2types.UsageClassType | ec2types.VirtualizationType | ec2types.ArchitectureType | ec2types.PlacementGroupStrategy](slice []T) string {
 	return strings.Join(lo.Map(slice, func(s T, _ int) string { return fmt.Sprintf(`"%s"`, s) }), ",")
 }

@@ -34,6 +34,7 @@ type OptionsFields struct {
 	KubeClientQPS                    *int
 	KubeClientBurst                  *int
 	EnableProfiling                  *bool
+	DisableControllerWarmup          *bool
 	DisableLeaderElection            *bool
 	DisableClusterStateObservability *bool
 	LeaderElectionName               *string
@@ -57,6 +58,7 @@ type FeatureGates struct {
 	SpotToSpotConsolidation *bool
 	NodeOverlay             *bool
 	StaticCapacity          *bool
+	CapacityBuffer          *bool
 }
 
 func Options(overrides ...OptionsFields) *options.Options {
@@ -74,6 +76,7 @@ func Options(overrides ...OptionsFields) *options.Options {
 		KubeClientQPS:                    lo.FromPtrOr(opts.KubeClientQPS, 200),
 		KubeClientBurst:                  lo.FromPtrOr(opts.KubeClientBurst, 300),
 		EnableProfiling:                  lo.FromPtrOr(opts.EnableProfiling, false),
+		DisableControllerWarmup:          lo.FromPtrOr(opts.DisableControllerWarmup, true),
 		DisableLeaderElection:            lo.FromPtrOr(opts.DisableLeaderElection, false),
 		DisableClusterStateObservability: lo.FromPtrOr(opts.DisableClusterStateObservability, false),
 		MemoryLimit:                      lo.FromPtrOr(opts.MemoryLimit, -1),
@@ -92,6 +95,7 @@ func Options(overrides ...OptionsFields) *options.Options {
 			SpotToSpotConsolidation: lo.FromPtrOr(opts.FeatureGates.SpotToSpotConsolidation, false),
 			NodeOverlay:             lo.FromPtrOr(opts.FeatureGates.NodeOverlay, false),
 			StaticCapacity:          lo.FromPtrOr(opts.FeatureGates.StaticCapacity, false),
+			CapacityBuffer:          lo.FromPtrOr(opts.FeatureGates.CapacityBuffer, false),
 		},
 	}
 }
