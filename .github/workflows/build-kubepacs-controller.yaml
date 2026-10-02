@@ -56,9 +56,17 @@ jobs:
               -t "kubepacs-controller:${arch}" \
               -f KubePACS_with_Karpenter/karpenter-provider-aws/Dockerfile \
               KubePACS_with_Karpenter
-            docker run --rm --platform "linux/${arch}" --entrypoint sh "kubepacs-controller:${arch}" -c '
+            docker run --rm --platform "linux/${arch}" -e ARCH="${arch}" --entrypoint sh "kubepacs-controller:${arch}" -c '
               set -e
               test -x /controller
+              # Executing the binary is not enough: QEMU runs foreign binaries too. Check the ELF machine field.
+              python3 -c "
+          import sys
+          machine = int.from_bytes(open(\"/controller\", \"rb\").read(20)[18:20], \"little\")
+          expected = {\"amd64\": 0x3E, \"arm64\": 0xB7}[\"${ARCH}\"]
+          assert machine == expected, \"controller is built for machine 0x%x, expected 0x%x\" % (machine, expected)
+          print(\"controller arch ok\", hex(machine))
+          "
               test -f /usr/local/bin/kubepacs_cli.py
               test -f /usr/local/bin/aws_coremark_singlecore.csv
               cd /tmp

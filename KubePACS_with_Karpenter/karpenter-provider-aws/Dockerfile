@@ -3,8 +3,10 @@
 # The build context must be KubePACS_with_Karpenter/ because the provider uses the sibling core module.
 FROM --platform=$BUILDPLATFORM golang:1.26 AS builder
 
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+# Set by buildx per target platform. Do not give defaults: a default value overrides the
+# platform-provided one and silently builds the wrong architecture.
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /src
 
