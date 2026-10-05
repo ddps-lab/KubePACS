@@ -15,6 +15,7 @@ import (
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/fake"
+	pscheduling "sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/test"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
@@ -243,6 +244,33 @@ var _ = Describe("KubePACS", func() {
 		for _, a := range calls[1].Allowed {
 			Expect(a.AvailabilityZone).ToNot(Equal(firstRoundZone))
 		}
+	})
+
+	It("should keep topology spread within zones that have spot offerings", func() {
+		// Spot only in test-zone-1; the other zones only offer on-demand
+		cloudProvider.InstanceTypesForNodePool = map[string][]*cloudprovider.InstanceType{
+			"kubepacs": {fake.NewInstanceType("spot-zone-1-instance-type", fake.WithOfferings(
+				cloudprovider.Offering{Available: true, Requirements: pscheduling.NewLabelRequirements(map[string]string{v1.CapacityTypeLabelKey: v1.CapacityTypeSpot, corev1.LabelTopologyZone: "test-zone-1"}), Price: 1},
+				cloudprovider.Offering{Available: true, Requirements: pscheduling.NewLabelRequirements(map[string]string{v1.CapacityTypeLabelKey: v1.CapacityTypeOnDemand, corev1.LabelTopologyZone: "test-zone-2"}), Price: 2},
+				cloudprovider.Offering{Available: true, Requirements: pscheduling.NewLabelRequirements(map[string]string{v1.CapacityTypeLabelKey: v1.CapacityTypeOnDemand, corev1.LabelTopologyZone: "test-zone-3"}), Price: 2},
+			))},
+		}
+		ExpectApplied(ctx, env.Client, kubepacsNodePool("kubepacs", nil))
+		labels := map[string]string{"app": "web"}
+		pod := kubepacsPod(nil)
+		pod.Labels = labels
+		pod.Spec.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{{
+			MaxSkew:           1,
+			TopologyKey:       corev1.LabelTopologyZone,
+			WhenUnsatisfiable: corev1.DoNotSchedule,
+			LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+		}}
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+
+		Expect(readStubCalls(stubLog)).To(HaveLen(1))
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelTopologyZone, "test-zone-1"))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.CapacityTypeLabelKey, v1.CapacityTypeSpot))
 	})
 
 	It("should exclude pools running in the same NodePool only", func() {

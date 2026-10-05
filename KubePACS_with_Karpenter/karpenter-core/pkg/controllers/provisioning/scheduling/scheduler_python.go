@@ -232,7 +232,7 @@ func (s *Scheduler) solveKubepacsNodePool(ctx context.Context, nct *NodeClaimTem
 		for _, p := range remaining {
 			cands, its, err := s.kubepacsCandidates(ctx, nct, p)
 			if err != nil || len(cands) == 0 {
-				log.FromContext(ctx).V(1).Info("no kubepacs candidates for pod, falling back to default", "Pod", p.Name, "NodePool", nct.NodePoolName, "error", err)
+				log.FromContext(ctx).Info("no kubepacs candidates for pod, falling back to default", "Pod", p.Name, "NodePool", nct.NodePoolName, "error", err)
 				unplaced = append(unplaced, p)
 				continue
 			}
@@ -296,7 +296,23 @@ func (s *Scheduler) kubepacsCandidates(ctx context.Context, nct *NodeClaimTempla
 	if len(its) == 0 {
 		return nil, nil, fmt.Errorf("all instance types exceed limits for nodepool")
 	}
+	// Probe as a spot NodeClaim limited to zones that have available spot offerings. Topology spread narrows the zone
+	// to one of the eligible domains without looking at capacity types, so without this it can pick a zone that only
+	// offers on-demand and leave no spot candidates.
+	spotZones := sets.New[string]()
+	for _, it := range its {
+		for _, offering := range it.Offerings {
+			if offering.Available && offering.CapacityType() == v1.CapacityTypeSpot {
+				spotZones.Insert(offering.Zone())
+			}
+		}
+	}
+	if spotZones.Len() == 0 {
+		return nil, nil, fmt.Errorf("no available spot offerings in nodepool")
+	}
 	probe := NewNodeClaim(nct, s.topology, s.daemonOverheadGroups[nct], its, s.reservationManager, s.reservedOfferingMode)
+	probe.Requirements.Add(scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, sets.List(spotZones)...))
+	probe.Requirements.Add(scheduling.NewRequirement(v1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, v1.CapacityTypeSpot))
 	requirements, fits, _, _, err := probe.CanAdd(ctx, p, s.cachedPodData[p.UID], false, s.allocator)
 	if err != nil {
 		return nil, nil, err
