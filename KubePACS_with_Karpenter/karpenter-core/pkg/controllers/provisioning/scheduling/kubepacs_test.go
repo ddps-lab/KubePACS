@@ -20,15 +20,20 @@ import (
 )
 
 // stubSolver stands in for kubepacs_cli.py: it records every call and allocates all pods to the first allowed
-// (instance type, zone) offering. KUBEPACS_STUB_FAIL=1 makes it exit non-zero to exercise the fallback path.
+// (instance type, zone) offering. KUBEPACS_STUB_MODE=fail exits non-zero and =bogus returns an offering that is not a
+// candidate, to exercise the fallback paths.
 const stubSolver = `#!/usr/bin/env python3
 import json, os, sys
 allowed = json.load(sys.stdin)
 with open(os.environ["KUBEPACS_STUB_LOG"], "a") as f:
     f.write(json.dumps({"args": sys.argv[1:], "allowed": allowed}) + "\n")
-if os.environ.get("KUBEPACS_STUB_FAIL") == "1":
+mode = os.environ.get("KUBEPACS_STUB_MODE", "first")
+if mode == "fail":
     sys.exit(1)
 count = int(sys.argv[sys.argv.index("--pod-count") + 1])
+if mode == "bogus":
+    print(json.dumps([{"instance_type": "not-a-candidate", "availability_zone": "nowhere", "num_instances": count}]))
+    sys.exit(0)
 first = allowed[0]
 print(json.dumps([{"instance_type": first["instance_type"], "availability_zone": first["availability_zone"], "num_instances": count}]))
 `
@@ -39,6 +44,15 @@ type stubCall struct {
 		InstanceType     string `json:"instance_type"`
 		AvailabilityZone string `json:"availability_zone"`
 	} `json:"allowed"`
+}
+
+func (c stubCall) allows(instanceType, zone string) bool {
+	for _, a := range c.Allowed {
+		if a.InstanceType == instanceType && a.AvailabilityZone == zone {
+			return true
+		}
+	}
+	return false
 }
 
 func readStubCalls(path string) []stubCall {
@@ -102,7 +116,7 @@ var _ = Describe("KubePACS", func() {
 		GinkgoT().Setenv("KUBEPACS_SOLVER_PATH", solver)
 		GinkgoT().Setenv("KUBEPACS_STUB_LOG", stubLog)
 		GinkgoT().Setenv("KUBEPACS_ENABLED", "true")
-		GinkgoT().Setenv("KUBEPACS_STUB_FAIL", "0")
+		GinkgoT().Setenv("KUBEPACS_STUB_MODE", "first")
 	})
 	AfterEach(func() {
 		cloudProvider.InstanceTypesForNodePool = map[string][]*cloudprovider.InstanceType{}
@@ -177,7 +191,7 @@ var _ = Describe("KubePACS", func() {
 	})
 
 	It("should fall back to the default scheduler when the solver fails", func() {
-		GinkgoT().Setenv("KUBEPACS_STUB_FAIL", "1")
+		GinkgoT().Setenv("KUBEPACS_STUB_MODE", "fail")
 		ExpectApplied(ctx, env.Client, kubepacsNodePool("kubepacs", nil))
 		pod := kubepacsPod(nil)
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -195,5 +209,101 @@ var _ = Describe("KubePACS", func() {
 
 		Expect(readStubCalls(stubLog)).To(BeEmpty())
 		ExpectScheduled(ctx, env.Client, pod)
+	})
+
+	It("should spread replicas across zones by solving them in separate rounds", func() {
+		ExpectApplied(ctx, env.Client, kubepacsNodePool("kubepacs", nil))
+		labels := map[string]string{"app": "web"}
+		spread := []corev1.TopologySpreadConstraint{{
+			MaxSkew:           1,
+			TopologyKey:       corev1.LabelTopologyZone,
+			WhenUnsatisfiable: corev1.DoNotSchedule,
+			LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+		}}
+		pods := []*corev1.Pod{}
+		for range 2 {
+			p := kubepacsPod(nil)
+			p.Labels = labels
+			p.Spec.TopologySpreadConstraints = spread
+			pods = append(pods, p)
+		}
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
+
+		first := ExpectScheduled(ctx, env.Client, pods[0])
+		second := ExpectScheduled(ctx, env.Client, pods[1])
+		Expect(first.Labels[corev1.LabelTopologyZone]).ToNot(Equal(second.Labels[corev1.LabelTopologyZone]))
+		Expect(first.Labels).To(HaveKeyWithValue(v1.CapacityTypeLabelKey, v1.CapacityTypeSpot))
+		Expect(second.Labels).To(HaveKeyWithValue(v1.CapacityTypeLabelKey, v1.CapacityTypeSpot))
+		calls := readStubCalls(stubLog)
+		Expect(calls).To(HaveLen(2))
+		// The second round only offers zones other than the first replica's
+		for _, a := range calls[1].Allowed {
+			Expect(a.AvailabilityZone).ToNot(Equal(first.Labels[corev1.LabelTopologyZone]))
+		}
+	})
+
+	It("should exclude pools running in the same NodePool only", func() {
+		webTaint := &corev1.Taint{Key: "workload", Value: "web", Effect: corev1.TaintEffectNoSchedule}
+		otherTaint := &corev1.Taint{Key: "workload", Value: "other", Effect: corev1.TaintEffectNoSchedule}
+		ExpectApplied(ctx, env.Client, kubepacsNodePool("web-spot", webTaint), kubepacsNodePool("other-spot", otherTaint))
+		labels := map[string]string{"app": "web"}
+		antiAffinity := []corev1.PodAffinityTerm{{
+			TopologyKey:   corev1.LabelHostname,
+			LabelSelector: &metav1.LabelSelector{MatchLabels: labels},
+		}}
+
+		// First web node: the solver picks the first candidate (pool beta)
+		first := kubepacsPod(webTaint)
+		first.Labels = labels
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, first)
+		node := ExpectScheduled(ctx, env.Client, first)
+		beta := [2]string{node.Labels[corev1.LabelInstanceTypeStable], node.Labels[corev1.LabelTopologyZone]}
+
+		// Second web pod cannot share the node, so a new node is selected: beta is not a candidate in web-spot
+		second := test.UnschedulablePod(test.PodOptions{
+			ObjectMeta:          metav1.ObjectMeta{Labels: labels},
+			PodAntiRequirements: antiAffinity,
+			Tolerations:         []corev1.Toleration{{Key: webTaint.Key, Operator: corev1.TolerationOpEqual, Value: webTaint.Value, Effect: webTaint.Effect}},
+			ResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("512Mi")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, second)
+		secondNode := ExpectScheduled(ctx, env.Client, second)
+		Expect([2]string{secondNode.Labels[corev1.LabelInstanceTypeStable], secondNode.Labels[corev1.LabelTopologyZone]}).ToNot(Equal(beta))
+
+		// Another KubePACS NodePool may still pick beta
+		other := kubepacsPod(otherTaint)
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, other)
+
+		calls := readStubCalls(stubLog)
+		Expect(calls).To(HaveLen(3))
+		Expect(calls[0].allows(beta[0], beta[1])).To(BeTrue())
+		Expect(calls[1].allows(beta[0], beta[1])).To(BeFalse())
+		Expect(calls[2].allows(beta[0], beta[1])).To(BeTrue())
+	})
+
+	It("should hand pods the solver could not place to the default scheduler", func() {
+		GinkgoT().Setenv("KUBEPACS_STUB_MODE", "bogus")
+		ExpectApplied(ctx, env.Client, kubepacsNodePool("kubepacs", nil))
+		pod := kubepacsPod(nil)
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+
+		Expect(readStubCalls(stubLog)).To(HaveLen(1))
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels).To(HaveKeyWithValue(v1.NodePoolLabelKey, "kubepacs"))
+	})
+
+	It("should schedule regular NodePool pods in the same round as KubePACS pods", func() {
+		wsTaint := &corev1.Taint{Key: "workload", Value: "workspaces", Effect: corev1.TaintEffectNoSchedule}
+		ExpectApplied(ctx, env.Client, kubepacsNodePool("workspaces-spot", wsTaint), test.NodePool(v1.NodePool{ObjectMeta: metav1.ObjectMeta{Name: "regular"}}))
+		kubepacs := kubepacsPod(wsTaint)
+		kubepacs.Spec.NodeSelector = map[string]string{v1.NodePoolLabelKey: "workspaces-spot"}
+		regular := kubepacsPod(nil)
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, kubepacs, regular)
+
+		Expect(readStubCalls(stubLog)).To(HaveLen(1))
+		Expect(ExpectScheduled(ctx, env.Client, kubepacs).Labels).To(HaveKeyWithValue(v1.NodePoolLabelKey, "workspaces-spot"))
+		Expect(ExpectScheduled(ctx, env.Client, regular).Labels).To(HaveKeyWithValue(v1.NodePoolLabelKey, "regular"))
 	})
 })

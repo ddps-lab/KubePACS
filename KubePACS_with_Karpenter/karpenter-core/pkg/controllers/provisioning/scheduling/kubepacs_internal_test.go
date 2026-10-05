@@ -6,6 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -66,8 +67,12 @@ func TestKubepacsGroupsPodsByNodePool(t *testing.T) {
 	strayPod, strayData := kubepacsTestPod("stray", nil)
 
 	podData := map[types.UID]*PodData{webPod.UID: webData, wsPod.UID: wsData, plainPod.UID: plainData, strayPod.UID: strayData}
-	groups := groupKubepacsPods([]*corev1.Pod{wsPod, plainPod, webPod, strayPod}, podData, templates)
+	groups, others := groupKubepacsPods([]*corev1.Pod{wsPod, plainPod, webPod, strayPod}, podData, templates)
 
+	// Pods without a KubePACS NodePool are returned for the default scheduler, in order
+	if len(others) != 2 || others[0] != plainPod || others[1] != strayPod {
+		t.Errorf("expected regular pods [ws-ondemand stray] to be left for the default scheduler, got %d pods", len(others))
+	}
 	if len(groups) != 2 {
 		t.Fatalf("expected 2 KubePACS groups, got %d", len(groups))
 	}
@@ -113,5 +118,37 @@ func TestKubepacsScenarioLabelStillApplies(t *testing.T) {
 	same, sameData := kubepacsTestPod("same", map[string]string{defaultKubepacsScenarioInstanceLabel: "s1"})
 	if got := kubepacsTemplateForPod(same, sameData, templates); got != scenario {
 		t.Errorf("pod for the same scenario should match")
+	}
+}
+
+func TestKubepacsExcludeRunningPools(t *testing.T) {
+	alpha := allowedInstance{InstanceType: "m5.large", AvailabilityZone: "zone-a"}
+	beta := allowedInstance{InstanceType: "c5.large", AvailabilityZone: "zone-b"}
+	gamma := allowedInstance{InstanceType: "c5.large", AvailabilityZone: "zone-a"}
+	candidates := []allowedInstance{alpha, beta, gamma}
+
+	// The running pool is removed; the same type in another zone is a different pool and stays
+	got := excludeRunningPools(candidates, sets.New(beta.key()))
+	if len(got) != 2 || got[0] != alpha || got[1] != gamma {
+		t.Errorf("expected [alpha gamma], got %v", got)
+	}
+	// Nothing running: unchanged
+	if got := excludeRunningPools(candidates, sets.New[string]()); len(got) != 3 {
+		t.Errorf("expected all candidates when nothing runs, got %v", got)
+	}
+	// Every candidate running: keep them all rather than leaving the pod pending
+	if got := excludeRunningPools(candidates, sets.New(alpha.key(), beta.key(), gamma.key())); len(got) != 3 {
+		t.Errorf("expected exclusion to be relaxed when it empties the candidates, got %v", got)
+	}
+}
+
+func TestKubepacsCandidatesKeyIgnoresOrder(t *testing.T) {
+	a := allowedInstance{InstanceType: "m5.large", AvailabilityZone: "zone-a"}
+	b := allowedInstance{InstanceType: "c5.large", AvailabilityZone: "zone-b"}
+	if candidatesKey([]allowedInstance{a, b}) != candidatesKey([]allowedInstance{b, a}) {
+		t.Errorf("candidate keys should not depend on order")
+	}
+	if candidatesKey([]allowedInstance{a}) == candidatesKey([]allowedInstance{b}) {
+		t.Errorf("different candidates should have different keys")
 	}
 }

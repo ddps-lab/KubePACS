@@ -470,11 +470,9 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*corev1.Pod) (Results, err
 	}
 
 	if usePython && len(pods) > 0 && len(s.nodeClaimTemplates) > 0 {
-		results, err := s.solvePython(ctx, pods)
-		if err == nil {
-			return results, nil
-		}
-		log.FromContext(ctx).Error(err, "python solver failed, falling back to default")
+		// KubePACS places the pods of opted-in NodePools; whatever it leaves (regular NodePools, pods the solver could
+		// not place) continues through the default scheduler below in the same round.
+		pods = s.solvePython(ctx, pods)
 	}
 	// =================================
 
