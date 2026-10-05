@@ -236,9 +236,12 @@ var _ = Describe("KubePACS", func() {
 		Expect(second.Labels).To(HaveKeyWithValue(v1.CapacityTypeLabelKey, v1.CapacityTypeSpot))
 		calls := readStubCalls(stubLog)
 		Expect(calls).To(HaveLen(2))
-		// The second round only offers zones other than the first replica's
+		// The scheduler orders pods itself, so take the zone the first round actually chose (the stub picks the first
+		// candidate). The second round only offers other zones.
+		firstRoundZone := calls[0].Allowed[0].AvailabilityZone
+		Expect([]string{first.Labels[corev1.LabelTopologyZone], second.Labels[corev1.LabelTopologyZone]}).To(ContainElement(firstRoundZone))
 		for _, a := range calls[1].Allowed {
-			Expect(a.AvailabilityZone).ToNot(Equal(first.Labels[corev1.LabelTopologyZone]))
+			Expect(a.AvailabilityZone).ToNot(Equal(firstRoundZone))
 		}
 	})
 
