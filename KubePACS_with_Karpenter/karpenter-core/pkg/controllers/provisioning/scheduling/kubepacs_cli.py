@@ -36,8 +36,10 @@ def load_spot_data(spot_data_path=None):
         with opener(path, 'rt', encoding='utf-8') as source:
             data = json.load(source)
     else:
+        # SpotLake moved its public data to this distribution (the previous d26bk4799jlxhe endpoint no longer resolves).
+        # KUBEPACS_SPOT_DATA_URL overrides it without rebuilding the image.
         response = requests.get(
-            'https://d26bk4799jlxhe.cloudfront.net/latest_data/latest_aws.json',
+            os.environ.get('KUBEPACS_SPOT_DATA_URL', 'https://d2krkjqajp4l0e.cloudfront.net/latest_aws.json'),
             timeout=30,
         )
         response.raise_for_status()
